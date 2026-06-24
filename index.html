@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Geotab Audit Lite</title>
+  <style>
+    :root {
+      --ga-border: #d9dee7;
+      --ga-bg: #f7f9fc;
+      --ga-card: #ffffff;
+      --ga-text: #172033;
+      --ga-muted: #667085;
+      --ga-critical: #b42318;
+      --ga-warning: #b54708;
+      --ga-low: #175cd3;
+      --ga-ok: #027a48;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ga-text);
+      background: var(--ga-bg);
+    }
+
+    .ga-wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .ga-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .ga-title h1 {
+      margin: 0 0 6px;
+      font-size: 26px;
+    }
+
+    .ga-subtitle {
+      color: var(--ga-muted);
+      line-height: 1.4;
+    }
+
+    .ga-panel {
+      background: var(--ga-card);
+      border: 1px solid var(--ga-border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    }
+
+    .ga-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    button {
+      border: 1px solid var(--ga-border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ga-text);
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover { background: #f2f4f7; }
+
+    button.ga-primary {
+      background: #172033;
+      border-color: #172033;
+      color: #fff;
+    }
+
+    button.ga-primary:hover { background: #253044; }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    label {
+      color: var(--ga-muted);
+      font-size: 13px;
+    }
+
+    input, select {
+      border: 1px solid var(--ga-border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: #fff;
+      color: var(--ga-text);
+    }
+
+    input[type="number"] {
+      width: 90px;
+    }
+
+    .ga-status {
+      margin-top: 10px;
+      color: var(--ga-muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .ga-cards {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .ga-card {
+      background: var(--ga-card);
+      border: 1px solid var(--ga-border);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    }
+
+    .ga-number {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .ga-card-label {
+      color: var(--ga-muted);
+      font-size: 13px;
+    }
+
+    .ga-critical { color: var(--ga-critical); }
+    .ga-warning { color: var(--ga-warning); }
+    .ga-low { color: var(--ga-low); }
+    .ga-ok { color: var(--ga-ok); }
+
+    .ga-table-wrap {
+      overflow: auto;
+      max-height: 560px;
+      border: 1px solid var(--ga-border);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--ga-border);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f2f4f7;
+      color: #344054;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+
+    tr:hover td { background: #fafafa; }
+
+    .ga-pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .ga-pill.critica {
+      color: #fff;
+      background: var(--ga-critical);
+    }
+
+    .ga-pill.media {
+      color: #fff;
+      background: var(--ga-warning);
+    }
+
+    .ga-pill.bassa {
+      color: #fff;
+      background: var(--ga-low);
+    }
+
+    .ga-small {
+      color: var(--ga-muted);
+      font-size: 12px;
+    }
+
+    .ga-error {
+      color: var(--ga-critical);
+      font-weight: 700;
+    }
+
+    .ga-help {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #7c2d12;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 950px) {
+      .ga-header { display: block; }
+      .ga-cards { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 12px; }
+      .ga-cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="ga-wrap">
+    <div class="ga-header">
+      <div class="ga-title">
+        <h1>Geotab Audit Lite</h1>
+        <div class="ga-subtitle">
+          Controllo qualità base della banca dati MyGeotab. Versione 0.1.0.
+        </div>
+      </div>
+      <div class="ga-small">
+        Add-in statico: nessun backend, nessuna password salvata.
+      </div>
+    </div>
+
+    <div class="ga-panel">
+      <div class="ga-actions">
+        <button id="gaRunAudit" class="ga-primary">Esegui controllo</button>
+        <button id="gaExportCsv" disabled>Esporta CSV</button>
+
+        <label for="gaOfflineDays">Soglia ultimo dato:</label>
+        <input id="gaOfflineDays" type="number" min="1" max="60" value="3">
+        <span class="ga-small">giorni</span>
+
+        <label for="gaSeverityFilter">Filtra gravità:</label>
+        <select id="gaSeverityFilter">
+          <option value="">Tutte</option>
+          <option value="Critica">Critica</option>
+          <option value="Media">Media</option>
+          <option value="Bassa">Bassa</option>
+        </select>
+
+        <label for="gaTextFilter">Cerca:</label>
+        <input id="gaTextFilter" type="text" placeholder="veicolo, problema, evidenza...">
+      </div>
+
+      <div id="gaStatus" class="ga-status">Pronto. Apri questa pagina da MyGeotab come Add-In e premi “Esegui controllo”.</div>
+      <div id="gaLocalWarning" class="ga-help" style="display:none;">
+        Questa pagina è aperta fuori da MyGeotab. Per leggere i dati reali deve essere caricata come Add-In dentro MyGeotab.
+      </div>
+    </div>
+
+    <div class="ga-cards">
+      <div class="ga-card">
+        <div id="gaTotalDevices" class="ga-number">-</div>
+        <div class="ga-card-label">Dispositivi attivi analizzati</div>
+      </div>
+      <div class="ga-card">
+        <div id="gaCriticalIssues" class="ga-number ga-critical">-</div>
+        <div class="ga-card-label">Problemi critici</div>
+      </div>
+      <div class="ga-card">
+        <div id="gaWarningIssues" class="ga-number ga-warning">-</div>
+        <div class="ga-card-label">Problemi medi</div>
+      </div>
+      <div class="ga-card">
+        <div id="gaLowIssues" class="ga-number ga-low">-</div>
+        <div class="ga-card-label">Problemi bassi</div>
+      </div>
+      <div class="ga-card">
+        <div id="gaHealthScore" class="ga-number ga-ok">-</div>
+        <div class="ga-card-label">Health score indicativo</div>
+      </div>
+    </div>
+
+    <div class="ga-panel">
+      <h2 style="margin-top:0;">Problemi trovati</h2>
+      <div class="ga-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Gravità</th>
+              <th>Area</th>
+              <th>Veicolo / dispositivo</th>
+              <th>Problema</th>
+              <th>Evidenza</th>
+              <th>Azione consigliata</th>
+            </tr>
+          </thead>
+          <tbody id="gaIssuesTable">
+            <tr>
+              <td colspan="6">Esegui il controllo per vedere i risultati.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="ga-small" style="margin-top:10px;">
+        Nota: questo audit non modifica dati in MyGeotab. Legge DeviceStatusInfo e Device con i permessi dell’utente loggato.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var ADDIN_NAMESPACE = "geotabauditlite";
+      var allIssues = [];
+
+      function byId(id) {
+        return document.getElementById(id);
+      }
+
+      function setText(id, value) {
+        byId(id).textContent = value;
+      }
+
+      function escapeHtml(value) {
+        return String(value === undefined || value === null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function safeDate(value) {
+        if (!value) return null;
+        var d = new Date(value);
+        if (isNaN(d.getTime())) return null;
+        return d;
+      }
+
+      function daysOld(dateValue) {
+        var d = safeDate(dateValue);
+        if (!d) return null;
+        var now = new Date();
+        return Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+      }
+
+      function formatDate(value) {
+        var d = safeDate(value);
+        if (!d) return "Non disponibile";
+        try {
+          return d.toLocaleString();
+        } catch (e) {
+          return String(value);
+        }
+      }
+
+      function getEntityId(entity) {
+        return entity && entity.id ? entity.id : "";
+      }
+
+      function isActiveDevice(device) {
+        if (!device) return false;
+        if (device.id === "NoDeviceId") return false;
+
+        var now = new Date();
+        var activeFrom = safeDate(device.activeFrom);
+        var activeTo = safeDate(device.activeTo);
+
+        if (activeFrom && activeFrom > now) return false;
+        if (activeTo && activeTo < now) return false;
+
+        return true;
+      }
+
+      function getDeviceName(deviceLike) {
+        if (!deviceLike) return "Dispositivo sconosciuto";
+        if (deviceLike.name) return deviceLike.name;
+        if (deviceLike.device && deviceLike.device.name) return deviceLike.device.name;
+        if (deviceLike.id) return deviceLike.id;
+        if (deviceLike.device && deviceLike.device.id) return deviceLike.device.id;
+        return "Dispositivo sconosciuto";
+      }
+
+      function addIssue(severity, area, asset, problem, evidence, action, sortWeight) {
+        allIssues.push({
+          severity: severity,
+          area: area,
+          asset: asset,
+          problem: problem,
+          evidence: evidence,
+          action: action,
+          sortWeight: sortWeight || 99
+        });
+      }
+
+      function apiGet(api, typeName, search, resultsLimit) {
+        return new Promise(function (resolve, reject) {
+          api.call(
+            "Get",
+            {
+              typeName: typeName,
+              search: search || {},
+              resultsLimit: resultsLimit || 5000
+            },
+            function (result) { resolve(result || []); },
+            function (error) { reject(error); }
+          );
+        });
+      }
+
+      function calculateScore(totalDevices, critical, warning, low) {
+        var base = 100;
+        if (totalDevices <= 0) return 0;
+
+        var penalty = (critical * 7) + (warning * 3) + (low * 1);
+        var normalized = Math.round(base - Math.min(95, penalty));
+        return Math.max(0, normalized);
+      }
+
+      function severityClass(severity) {
+        if (severity === "Critica") return "critica";
+        if (severity === "Media") return "media";
+        return "bassa";
+      }
+
+      function filteredIssues() {
+        var severity = byId("gaSeverityFilter").value;
+        var text = byId("gaTextFilter").value.trim().toLowerCase();
+
+        return allIssues.filter(function (issue) {
+          var severityOk = !severity || issue.severity === severity;
+          var haystack = [
+            issue.severity,
+            issue.area,
+            issue.asset,
+            issue.problem,
+            issue.evidence,
+            issue.action
+          ].join(" ").toLowerCase();
+
+          var textOk = !text || haystack.indexOf(text) !== -1;
+          return severityOk && textOk;
+        });
+      }
+
+      function renderIssues() {
+        var tbody = byId("gaIssuesTable");
+        var issues = filteredIssues().sort(function (a, b) {
+          if (a.sortWeight !== b.sortWeight) return a.sortWeight - b.sortWeight;
+          return String(a.asset).localeCompare(String(b.asset));
+        });
+
+        tbody.innerHTML = "";
+
+        if (!issues.length) {
+          tbody.innerHTML = "<tr><td colspan='6'>Nessun problema da mostrare con i filtri attuali.</td></tr>";
+          return;
+        }
+
+        issues.forEach(function (issue) {
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td><span class='ga-pill " + severityClass(issue.severity) + "'>" + escapeHtml(issue.severity) + "</span></td>" +
+            "<td>" + escapeHtml(issue.area) + "</td>" +
+            "<td>" + escapeHtml(issue.asset) + "</td>" +
+            "<td>" + escapeHtml(issue.problem) + "</td>" +
+            "<td class='ga-small'>" + escapeHtml(issue.evidence) + "</td>" +
+            "<td>" + escapeHtml(issue.action) + "</td>";
+          tbody.appendChild(tr);
+        });
+      }
+
+      function toCsvValue(value) {
+        var s = String(value === undefined || value === null ? "" : value);
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+
+      function exportCsv() {
+        var rows = filteredIssues();
+        var header = ["Gravità", "Area", "Asset", "Problema", "Evidenza", "Azione consigliata"];
+        var lines = [header.map(toCsvValue).join(",")];
+
+        rows.forEach(function (issue) {
+          lines.push([
+            issue.severity,
+            issue.area,
+            issue.asset,
+            issue.problem,
+            issue.evidence,
+            issue.action
+          ].map(toCsvValue).join(","));
+        });
+
+        var blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        var stamp = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = "geotab_audit_lite_" + stamp + ".csv";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      function analyseDevices(devices, statuses) {
+        allIssues = [];
+
+        var thresholdDays = parseInt(byId("gaOfflineDays").value, 10);
+        if (isNaN(thresholdDays) || thresholdDays < 1) thresholdDays = 3;
+
+        var activeDevices = devices.filter(isActiveDevice);
+        var statusByDeviceId = {};
+
+        statuses.forEach(function (statusItem) {
+          var id = statusItem.device && statusItem.device.id ? statusItem.device.id : "";
+          if (id) statusByDeviceId[id] = statusItem;
+        });
+
+        activeDevices.forEach(function (device) {
+          var deviceId = getEntityId(device);
+          var name = getDeviceName(device);
+          var status = statusByDeviceId[deviceId];
+
+          if (!status) {
+            addIssue(
+              "Critica",
+              "Comunicazione",
+              name,
+              "Stato dispositivo non disponibile",
+              "Nessun DeviceStatusInfo trovato per questo dispositivo attivo.",
+              "Verificare installazione, permessi utente o stato dispositivo.",
+              1
+            );
+          }
+
+          if (!device.serialNumber) {
+            addIssue(
+              "Media",
+              "Anagrafica",
+              name,
+              "Seriale dispositivo mancante",
+              "Campo Device.serialNumber vuoto o non disponibile.",
+              "Verificare l’anagrafica del dispositivo in MyGeotab.",
+              20
+            );
+          }
+
+          if (!device.vehicleIdentificationNumber) {
+            addIssue(
+              "Media",
+              "Anagrafica",
+              name,
+              "VIN mancante",
+              "Campo Device.vehicleIdentificationNumber vuoto o non disponibile.",
+              "Completare il VIN se la flotta lo usa per report, manutenzione o integrazioni.",
+              21
+            );
+          }
+
+          if (!device.groups || !device.groups.length) {
+            addIssue(
+              "Media",
+              "Gruppi",
+              name,
+              "Nessun gruppo assegnato",
+              "Campo Device.groups vuoto.",
+              "Assegnare il veicolo al gruppo operativo corretto.",
+              22
+            );
+          }
+
+          if (status) {
+            var statusName = getDeviceName(status);
+            var oldDays = daysOld(status.dateTime);
+
+            if (status.isDeviceCommunicating === false) {
+              addIssue(
+                "Critica",
+                "Comunicazione",
+                statusName,
+                "Dispositivo non comunicante",
+                "DeviceStatusInfo.isDeviceCommunicating = false.",
+                "Verificare alimentazione, installazione, copertura rete e stato GO device.",
+                2
+              );
+            }
+
+            if (oldDays !== null && oldDays >= thresholdDays) {
+              addIssue(
+                "Critica",
+                "Dati",
+                statusName,
+                "Ultimo dato troppo vecchio",
+                "Ultimo dato: " + formatDate(status.dateTime) + " (" + oldDays + " giorni fa).",
+                "Controllare se il veicolo è fermo, scollegato o se il dispositivo non comunica.",
+                3
+              );
+            }
+
+            if (status.latitude === undefined || status.longitude === undefined || status.latitude === null || status.longitude === null) {
+              addIssue(
+                "Bassa",
+                "GPS",
+                statusName,
+                "Posizione GPS non disponibile",
+                "Latitude/longitude mancanti nello stato corrente.",
+                "Verificare se il veicolo è in area coperta o se il dato GPS è disponibile.",
+                40
+              );
+            }
+
+            if (status.exceptionEvents && status.exceptionEvents.length > 0) {
+              addIssue(
+                "Bassa",
+                "Regole",
+                statusName,
+                "Eventi eccezione attivi",
+                "ExceptionEvents attivi: " + status.exceptionEvents.length + ".",
+                "Aprire la sezione eccezioni/regole per verificare se richiedono azione.",
+                41
+              );
+            }
+          }
+        });
+
+        return activeDevices.length;
+      }
+
+      async function runAudit(api) {
+        var runBtn = byId("gaRunAudit");
+        var exportBtn = byId("gaExportCsv");
+        runBtn.disabled = true;
+        exportBtn.disabled = true;
+        byId("gaStatus").textContent = "Controllo in corso: lettura DeviceStatusInfo e Device...";
+
+        try {
+          var results = await Promise.all([
+            apiGet(api, "DeviceStatusInfo", {}, 5000),
+            apiGet(api, "Device", {}, 5000)
+          ]);
+
+          var statuses = results[0];
+          var devices = results[1];
+
+          var activeDeviceCount = analyseDevices(devices, statuses);
+
+          var critical = allIssues.filter(function (x) { return x.severity === "Critica"; }).length;
+          var warning = allIssues.filter(function (x) { return x.severity === "Media"; }).length;
+          var low = allIssues.filter(function (x) { return x.severity === "Bassa"; }).length;
+          var score = calculateScore(activeDeviceCount, critical, warning, low);
+
+          setText("gaTotalDevices", activeDeviceCount);
+          setText("gaCriticalIssues", critical);
+          setText("gaWarningIssues", warning);
+          setText("gaLowIssues", low);
+          setText("gaHealthScore", score + "/100");
+
+          renderIssues();
+
+          byId("gaStatus").textContent =
+            "Controllo completato. Device letti: " + devices.length +
+            ". Dispositivi attivi analizzati: " + activeDeviceCount +
+            ". Problemi trovati: " + allIssues.length + ".";
+
+          exportBtn.disabled = allIssues.length === 0;
+        } catch (error) {
+          console.error("Geotab Audit Lite error:", error);
+          byId("gaStatus").innerHTML =
+            "<span class='ga-error'>Errore durante il controllo.</span> " +
+            "Apri la console del browser per i dettagli. Possibili cause: permessi insufficienti, Add-In non caricato correttamente o limite API.";
+        } finally {
+          runBtn.disabled = false;
+        }
+      }
+
+      function wireUi(api) {
+        byId("gaRunAudit").addEventListener("click", function () {
+          runAudit(api);
+        });
+
+        byId("gaExportCsv").addEventListener("click", exportCsv);
+        byId("gaSeverityFilter").addEventListener("change", renderIssues);
+        byId("gaTextFilter").addEventListener("input", renderIssues);
+      }
+
+      if (!window.geotab || !window.geotab.addin) {
+        byId("gaLocalWarning").style.display = "block";
+      } else {
+        window.geotab.addin[ADDIN_NAMESPACE] = function () {
+          return {
+            initialize: function (api, state, callback) {
+              wireUi(api);
+              if (callback) callback();
+            },
+            focus: function () {
+              // Il controllo parte solo su click, così l'utente decide quando interrogare l'API.
+            },
+            blur: function () {
+              // Nessuna azione da salvare in questa versione.
+            }
+          };
+        };
+      }
+    }());
+  </script>
+</body>
+</html>

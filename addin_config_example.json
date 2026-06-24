@@ -1,0 +1,17 @@
+{
+  "name": "Geotab Audit Lite",
+  "supportEmail": "forlasifrancesco@yahoo.it",
+  "version": "0.1.0",
+  "items": [
+    {
+      "url": "https://forlasifrancesco.github.io/geotabauditlite/index.html",
+      "path": "EngineMaintenanceLink/",
+      "category": "DiagnosticsId",
+      "menuName": {
+        "en": "Audit Lite",
+        "it": "Audit Lite"
+      }
+    }
+  ],
+  "files": {}
+}
