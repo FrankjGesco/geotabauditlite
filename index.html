@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Geotab Audit Lite</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">MyGeotab Add-In</div>
+        <h1>Geotab Audit Lite</h1>
+        <p class="subtitle">
+          Controllo qualità rapido su comunicazione, anagrafica, gruppi e stato operativo dei dispositivi.
+        </p>
+      </div>
+      <div class="version">v0.3.0</div>
+    </header>
+
+    <section id="localWarning" class="notice warning hidden">
+      Questa pagina è aperta fuori da MyGeotab. Per leggere i dati reali deve essere caricata come Add-In dentro MyGeotab.
+    </section>
+
+    <section class="toolbar">
+      <div class="toolbar-left">
+        <button id="runAudit" class="btn primary">Esegui controllo</button>
+        <button id="exportCsv" class="btn" disabled>Esporta CSV</button>
+      </div>
+
+      <div class="toolbar-right">
+        <label class="field">
+          <span>Soglia ultimo dato</span>
+          <input id="offlineDays" type="number" min="1" max="90" value="3">
+        </label>
+
+        <label class="field">
+          <span>Vista</span>
+          <select id="viewMode">
+            <option value="priority" selected>Solo priorità</option>
+            <option value="all">Tutti i problemi</option>
+          </select>
+        </label>
+
+        <label class="field search-field">
+          <span>Cerca</span>
+          <input id="textFilter" type="text" placeholder="veicolo, problema, area...">
+        </label>
+      </div>
+    </section>
+
+    <div id="status" class="status">
+      Pronto. Premi “Esegui controllo”.
+    </div>
+
+    <section class="score-grid">
+      <article class="score-card main-score">
+        <div class="score-label">Health score</div>
+        <div id="healthScore" class="score-number">-</div>
+        <div id="healthText" class="score-help">Esegui il controllo per calcolare lo score.</div>
+      </article>
+
+      <article class="score-card">
+        <div class="score-label">Dispositivi attivi</div>
+        <div id="totalDevices" class="score-number">-</div>
+        <div class="score-help">Asset analizzati</div>
+      </article>
+
+      <article class="score-card critical-card">
+        <div class="score-label">Critici</div>
+        <div id="criticalIssues" class="score-number">-</div>
+        <div class="score-help">Asset/problemi da verificare subito</div>
+      </article>
+
+      <article class="score-card medium-card">
+        <div class="score-label">Medi</div>
+        <div id="warningIssues" class="score-number">-</div>
+        <div class="score-help">Anagrafiche e configurazioni</div>
+      </article>
+
+      <article class="score-card low-card">
+        <div class="score-label">Informativi</div>
+        <div id="lowIssues" class="score-number">-</div>
+        <div class="score-help">Nascosti in “Solo priorità”</div>
+      </article>
+    </section>
+
+    <section class="panel score-explain">
+      <div class="panel-header">
+        <div>
+          <h2>Come viene calcolato lo score</h2>
+          <p>È uno score indicativo dell’add-in, non uno score ufficiale Geotab.</p>
+        </div>
+      </div>
+      <div id="scoreFormula" class="formula-box">
+        Esegui il controllo per vedere la formula applicata ai tuoi dati.
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Azioni consigliate</h2>
+            <p>Riepilogo operativo, pensato per non leggere decine di righe una per una.</p>
+          </div>
+        </div>
+        <div id="actionsList" class="action-list">
+          <div class="empty-state">Esegui il controllo per vedere le azioni prioritarie.</div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Distribuzione problemi visibili</h2>
+            <p>Conta dei problemi in base alla vista e ai filtri attivi.</p>
+          </div>
+        </div>
+        <div id="areaBreakdown" class="breakdown">
+          <div class="empty-state">Nessun dato disponibile.</div>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header table-header">
+        <div>
+          <h2>Problemi trovati</h2>
+          <p id="tableHint">
+            Vista “Solo priorità”: mostra critici e medi. Passa a “Tutti i problemi” per vedere anche gli informativi.
+          </p>
+        </div>
+        <div class="table-tools">
+          <label class="field compact">
+            <span>Gravità</span>
+            <select id="severityFilter">
+              <option value="">Tutte</option>
+              <option value="Critica">Critica</option>
+              <option value="Media">Media</option>
+              <option value="Bassa">Informativa</option>
+            </select>
+          </label>
+          <label class="field compact">
+            <span>Area</span>
+            <select id="areaFilter">
+              <option value="">Tutte</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Priorità</th>
+              <th>Area</th>
+              <th>Veicolo / dispositivo</th>
+              <th>Problema</th>
+              <th>Evidenza</th>
+              <th>Azione</th>
+            </tr>
+          </thead>
+          <tbody id="issuesTable">
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">Esegui il controllo per vedere i risultati.</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="footer">
+      L’add-in legge dati con i permessi dell’utente loggato. Non modifica dati, non salva credenziali e non usa un backend esterno.
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
