@@ -2,116 +2,32 @@
   "use strict";
 
   var ADDIN_NAMESPACE = "geotabauditlite";
-
-  var deviceById = {};
-  var latestStatusByDeviceId = {};
-  var ruleById = {};
   var pageState = null;
 
+  var deviceById = {};
+  var statusByDeviceId = {};
+  var planRows = [];
   var dataRows = [];
-  var communicationIssues = [];
-  var assetExceptionIssues = [];
-  var noisyRuleIssues = [];
-  var faultIssues = [];
-  var allIssues = [];
+  var communicationRows = [];
+  var cleanRows = [];
+  var exportRows = [];
+  var showPlanMode = "fix";
 
   function byId(id) { return document.getElementById(id); }
   function setText(id, value) { byId(id).textContent = value; }
-
-  function jsAttr(value) {
-    return escapeHtml(value).replace(/`/g, "&#096;");
-  }
-
-  function canUseState() {
-    return pageState && typeof pageState.gotoPage === "function";
-  }
-
-  function gotoPageSafe(page, params, fallbackHash, label) {
-    try {
-      if (canUseState()) {
-        pageState.gotoPage(page, params || {});
-        return;
-      }
-
-      if (fallbackHash) {
-        window.location.hash = fallbackHash;
-        return;
-      }
-    } catch (e) {
-      console.warn("Navigazione MyGeotab non riuscita:", label || page, e);
-      alert("Non riesco ad aprire automaticamente questa pagina. Prova ad aprirla manualmente da MyGeotab.");
-    }
-  }
-
-  function openDevicePage(deviceId) {
-    if (!deviceId) {
-      alert("ID asset non disponibile per questa riga.");
-      return;
-    }
-
-    gotoPageSafe("device", { id: deviceId }, "#device,id:" + deviceId, "asset");
-  }
-
-  function openMapPage(deviceId) {
-    if (!deviceId) {
-      alert("ID asset non disponibile per questa riga.");
-      return;
-    }
-
-    // Formato documentato da Geotab: #map,liveVehicleIds:!(b12)
-    // Uso lo stesso parametro anche con state.gotoPage.
-    gotoPageSafe("map", { liveVehicleIds: "!(" + deviceId + ")" }, "#map,liveVehicleIds:!(" + deviceId + ")", "mappa live");
-  }
-
-  function openTripsPage(deviceId) {
-    if (!deviceId) {
-      alert("ID asset non disponibile per questa riga.");
-      return;
-    }
-
-    var params = {
-      entityType: "Device",
-      selectedEntities: "!(" + deviceId + ")",
-      dateRange: "(interval:Today)"
-    };
-
-    gotoPageSafe(
-      "tripsHistory",
-      params,
-      "#tripsHistory,dateRange:(interval:Today),entityType:Device,selectedEntities:!(" + deviceId + ")",
-      "storico viaggi"
-    );
-  }
-
-  function openRulesPage(ruleId) {
-    // In molte banche dati apre la pagina regole. Se l'id non è accettato,
-    // l'utente arriva comunque all'elenco regole.
-    var params = ruleId ? { id: ruleId } : {};
-    var hash = ruleId ? "#rules,id:" + ruleId : "#rules";
-    gotoPageSafe("rules", params, hash, "regole");
-  }
-
-  function openFaultsPage(deviceId) {
-    // La pagina Problems/Faults nuova non ha parametri pubblici documentati per filtrare per asset.
-    // Apro la pagina problemi generica senza generare errori; per la correzione puntuale resta disponibile "Apri asset".
-    gotoPageSafe("faults", {}, "#faults", "problemi");
-  }
-
-  function assetCell(issue) {
-    return "<div class='object-cell'><span class='object-name'>" + escapeHtml(issue.objectName) + "</span></div>";
-  }
-
-  function openCell(issue) {
-    if (!issue.deviceId) return "<span class='meta'>N/D</span>";
-    return "<div class='row-actions'>" +
-      "<button class='row-link js-open-device primary' data-device-id='" + jsAttr(issue.deviceId) + "'>Apri asset</button>" +
-      "</div>";
-  }
 
   function escapeHtml(value) {
     return String(value === undefined || value === null ? "" : value)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
+
+  function jsAttr(value) {
+    return escapeHtml(value).replace(/`/g, "&#096;");
+  }
+
+  function hasValue(value) {
+    return value !== undefined && value !== null && String(value).trim() !== "";
   }
 
   function safeDate(value) {
@@ -131,10 +47,6 @@
     var d = safeDate(dateValue);
     if (!d) return null;
     return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
-  }
-
-  function daysAgoIso(days) {
-    return new Date(Date.now() - (days * 24 * 60 * 60 * 1000)).toISOString();
   }
 
   function getNumberInput(id, fallback) {
@@ -163,21 +75,16 @@
     return "";
   }
 
-  function deviceNameFromRef(ref) {
-    var id = entityId(ref);
-    if (id && deviceById[id]) return preferredDeviceName(deviceById[id]);
-    if (ref && ref.name) return ref.name;
-    if (id) return id;
-    return "Dispositivo sconosciuto";
-  }
-
   function isActiveDevice(device) {
     if (!device || entityId(device) === "NoDeviceId") return false;
+
     var now = new Date();
     var activeFrom = safeDate(device.activeFrom);
     var activeTo = safeDate(device.activeTo);
+
     if (activeFrom && activeFrom > now) return false;
     if (activeTo && activeTo < now) return false;
+
     return true;
   }
 
@@ -187,16 +94,32 @@
 
   function isBuiltInGroup(group) {
     if (!group) return true;
-    var id = entityId(group);
+
+    var id = String(group.id || "");
     var name = normalize(group.name);
+
     if (group.isSystem || group.system) return true;
+
     if (/^Group[A-Za-z0-9]+Id$/.test(id)) return true;
 
     var builtInNames = [
-      "company group", "entire organization", "entire organisation",
-      "vehicle", "vehicles", "asset", "assets", "trailer", "trailers",
-      "driver", "drivers", "azienda", "gruppo azienda", "veicolo", "veicoli",
-      "rimorchi", "conducenti"
+      "company group",
+      "entire organization",
+      "entire organisation",
+      "vehicle",
+      "vehicles",
+      "asset",
+      "assets",
+      "trailer",
+      "trailers",
+      "driver",
+      "drivers",
+      "azienda",
+      "gruppo azienda",
+      "veicolo",
+      "veicoli",
+      "rimorchi",
+      "conducenti"
     ];
 
     return builtInNames.indexOf(name) !== -1;
@@ -207,48 +130,15 @@
     return groups.filter(function (g) { return !isBuiltInGroup(g); });
   }
 
-  function hasValue(value) {
-    return value !== undefined && value !== null && String(value).trim() !== "";
+  function getLicencePlate(device) {
+    return device.licensePlate || device.licencePlate || "";
   }
 
   function hasLicenceField(devices) {
     return devices.some(function (d) {
       return Object.prototype.hasOwnProperty.call(d, "licensePlate") ||
-             Object.prototype.hasOwnProperty.call(d, "licencePlate") ||
-             Object.prototype.hasOwnProperty.call(d, "licensePlateNumber");
+             Object.prototype.hasOwnProperty.call(d, "licencePlate");
     });
-  }
-
-  function getLicencePlate(device) {
-    return device.licensePlate || device.licencePlate || device.licensePlateNumber || "";
-  }
-
-  function addIssue(list, category, priority, objectName, problem, evidence, action, sortWeight, extra) {
-    var issue = {
-      category: category,
-      priority: priority,
-      objectName: objectName,
-      problem: problem,
-      evidence: evidence,
-      action: action,
-      sortWeight: sortWeight || 99
-    };
-    if (extra) {
-      Object.keys(extra).forEach(function (key) { issue[key] = extra[key]; });
-    }
-    list.push(issue);
-  }
-
-  function issuePriorityClass(priority) {
-    if (priority === "Critica") return "critica";
-    if (priority === "Media") return "media";
-    return "info";
-  }
-
-  function priorityWeight(priority) {
-    if (priority === "Critica") return 1;
-    if (priority === "Media") return 2;
-    return 3;
   }
 
   function apiGet(api, typeName, search, resultsLimit) {
@@ -272,571 +162,254 @@
     }
   }
 
-  function buildDeviceMap(activeDevices) {
+  function buildMaps(activeDevices, statuses) {
     deviceById = {};
     activeDevices.forEach(function (device) {
       var id = entityId(device);
       if (id) deviceById[id] = device;
     });
-  }
 
-  function buildRuleMap(rules) {
-    ruleById = {};
-    rules.forEach(function (rule) {
-      var id = entityId(rule);
-      if (id) ruleById[id] = rule;
+    statusByDeviceId = {};
+    statuses.forEach(function (status) {
+      var id = entityId(status.device);
+      if (id) statusByDeviceId[id] = status;
     });
   }
 
-  function collectRuleRefsFromEvents(events) {
-    var ids = {};
-    (events || []).forEach(function (event) {
-      var id = entityId(event.rule);
-      if (id) ids[id] = true;
-      if (event.rule && event.rule.name && id) {
-        ruleById[id] = event.rule;
+  function canUseState() {
+    return pageState && typeof pageState.gotoPage === "function";
+  }
+
+  function openDevicePage(deviceId) {
+    if (!deviceId) {
+      alert("ID asset non disponibile per questa riga.");
+      return;
+    }
+
+    try {
+      if (canUseState()) {
+        pageState.gotoPage("device", { id: deviceId });
+      } else {
+        window.location.hash = "#device,id:" + deviceId;
       }
-    });
-    return Object.keys(ids);
-  }
-
-  function collectRuleRefsFromStatuses(statuses) {
-    var ids = {};
-    (statuses || []).forEach(function (status) {
-      (status.exceptionEvents || []).forEach(function (event) {
-        var id = entityId(event.rule);
-        if (id) ids[id] = true;
-        if (event.rule && event.rule.name && id) {
-          ruleById[id] = event.rule;
-        }
-      });
-    });
-    return Object.keys(ids);
-  }
-
-  async function resolveMissingRules(api, statuses, exceptionEvents) {
-    var allIds = {};
-    collectRuleRefsFromStatuses(statuses).concat(collectRuleRefsFromEvents(exceptionEvents)).forEach(function (id) {
-      allIds[id] = true;
-    });
-
-    var ids = Object.keys(allIds).filter(function (id) {
-      return !ruleById[id] || !ruleById[id].name;
-    }).slice(0, 150);
-
-    for (var i = 0; i < ids.length; i++) {
-      var id = ids[i];
-
-      // Tentativo 1: EntitySearch con id.
-      var result = await safeApiGet(api, "Rule", { id: id }, 1);
-      if (result.ok && result.data && result.data.length) {
-        ruleById[id] = result.data[0];
-        continue;
-      }
-
-      // Tentativo 2: alcune istanze accettano un oggetto id.
-      var result2 = await safeApiGet(api, "Rule", { id: { id: id } }, 1);
-      if (result2.ok && result2.data && result2.data.length) {
-        ruleById[id] = result2.data[0];
-      }
+    } catch (e) {
+      console.warn("Navigazione asset non riuscita", e);
+      alert("Non riesco ad aprire automaticamente l'asset. Prova ad aprirlo manualmente da MyGeotab.");
     }
   }
 
-  function humanizeRuleId(id) {
-    if (!id) return "Regola sconosciuta";
-    if (/^Rule[A-Za-z0-9]+Id$/.test(id)) {
-      var clean = id.replace(/^Rule/, "").replace(/Id$/, "");
-      return clean.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/([A-Z])([A-Z][a-z])/g, "$1 $2");
-    }
-    return "ID regola: " + id;
+  function openCell(row) {
+    if (!row.deviceId) return "<span class='meta'>N/D</span>";
+    return "<button class='row-link primary js-open-device' data-device-id='" + jsAttr(row.deviceId) + "'>Apri asset</button>";
   }
 
-  function ruleDisplayName(ref) {
-    var id = entityId(ref);
-    if (ref && ref.name) return ref.name;
-    if (id && ruleById[id] && ruleById[id].name) return ruleById[id].name;
-    if (id && ruleById[id] && ruleById[id].comment) return ruleById[id].comment;
-    return humanizeRuleId(id);
+  function getSearchText() {
+    return byId("globalSearch").value.trim().toLowerCase();
   }
 
-  function analyseDataIssues(activeDevices) {
-    dataRows = [];
+  function rowMatches(row, query) {
+    if (!query) return true;
+
+    var text = [
+      row.assetName,
+      row.serialNumber,
+      row.vin,
+      row.licensePlate,
+      row.missingLabels && row.missingLabels.join(" "),
+      row.communicationProblem,
+      row.evidence,
+      row.action,
+      row.operationalGroupNames && row.operationalGroupNames.join(" ")
+    ].join(" ").toLowerCase();
+
+    return text.indexOf(query) !== -1;
+  }
+
+  function analyse(activeDevices, statuses) {
+    var offlineDays = getNumberInput("offlineDays", 3);
     var checkLicence = hasLicenceField(activeDevices);
 
+    planRows = [];
+    dataRows = [];
+    communicationRows = [];
+    cleanRows = [];
+
     activeDevices.forEach(function (device) {
+      var deviceId = entityId(device);
       var name = preferredDeviceName(device);
+      var status = statusByDeviceId[deviceId];
+
+      var serialNumber = device.serialNumber || "";
+      var vin = device.vehicleIdentificationNumber || "";
+      var plate = getLicencePlate(device);
+      var opsGroups = operationalGroups(device.groups || []);
+      var opsGroupNames = opsGroups.map(function (g) { return g.name || g.id || "Gruppo"; });
+
       var missing = [];
-      var evidences = [];
-      var actions = [];
+      var missingDetails = [];
 
-      if (!hasValue(device.serialNumber)) {
+      if (!hasValue(serialNumber)) {
         missing.push("Seriale dispositivo mancante");
-        evidences.push("serialNumber vuoto/non disponibile");
-        actions.push("verificare seriale dispositivo");
+        missingDetails.push("serialNumber vuoto");
       }
 
-      if (!hasValue(device.vehicleIdentificationNumber)) {
+      if (!hasValue(vin)) {
         missing.push("VIN mancante");
-        evidences.push("vehicleIdentificationNumber vuoto/non disponibile");
-        actions.push("completare VIN");
+        missingDetails.push("vehicleIdentificationNumber vuoto");
       }
 
-      if (checkLicence && !hasValue(getLicencePlate(device))) {
+      if (checkLicence && !hasValue(plate)) {
         missing.push("Targa mancante");
-        evidences.push("campo targa vuoto");
-        actions.push("completare targa");
+        missingDetails.push("targa/licencePlate vuota");
       }
 
-      var opsGroups = operationalGroups(device.groups);
       if (opsGroups.length === 0) {
-        var totalGroups = device.groups ? device.groups.length : 0;
-        missing.push("Nessun gruppo operativo assegnato");
-        evidences.push("gruppi totali: " + totalGroups + ", gruppi operativi: 0 dopo esclusione gruppi integrati");
-        actions.push("assegnare gruppo operativo");
+        missing.push("Nessun gruppo operativo");
+        missingDetails.push("gruppi operativi = 0 dopo esclusione gruppi integrati");
       }
 
-      if (missing.length) {
-        dataRows.push({
-          category: "Anagrafica",
-          priority: "Media",
-          objectName: name,
-          missing: missing,
-          problem: missing.join(" + "),
-          evidence: evidences.join("; "),
-          action: "Correggere: " + actions.join(", ") + ".",
-          sortWeight: 10,
-          deviceId: entityId(device)
-        });
-      }
-    });
-  }
-
-  function analyseCommunicationAndActiveExceptions(activeDevices, statuses) {
-    communicationIssues = [];
-    assetExceptionIssues = [];
-
-    var offlineDays = getNumberInput("offlineDays", 3);
-    var activeExceptionThreshold = getNumberInput("assetExceptionThreshold", 3);
-
-    var statusByDeviceId = {};
-    latestStatusByDeviceId = {};
-    statuses.forEach(function (statusItem) {
-      var id = entityId(statusItem.device);
-      if (id) {
-        statusByDeviceId[id] = statusItem;
-        latestStatusByDeviceId[id] = statusItem;
-      }
-    });
-
-    activeDevices.forEach(function (device) {
-      var name = preferredDeviceName(device);
-      var status = statusByDeviceId[entityId(device)];
+      var communicationProblem = "";
+      var communicationPriority = "";
+      var communicationEvidence = "";
+      var lastDataText = "Non disponibile";
 
       if (!status) {
-        addIssue(
-          communicationIssues,
-          "Comunicazione",
-          "Critica",
-          name,
-          "Stato dispositivo non disponibile",
-          "Nessun DeviceStatusInfo trovato per questo dispositivo attivo.",
-          "Verificare se l’asset è speciale, se il dispositivo è installato o se l’asset deve essere archiviato.",
-          1,
-          { deviceId: entityId(device), hasMapLocation: false }
-        );
-        return;
-      }
-
-      var statusName = deviceNameFromRef(status.device);
-      var hasMapLocation = status.latitude !== undefined && status.longitude !== undefined && status.latitude !== null && status.longitude !== null;
-      var oldDays = daysOld(status.dateTime);
-      var dateEvidence = "Ultimo dato: " + formatDate(status.dateTime);
-      if (oldDays !== null) dateEvidence += " (" + oldDays + " giorni fa).";
-
-      if (status.isDeviceCommunicating === false) {
-        addIssue(
-          communicationIssues,
-          "Comunicazione",
-          "Critica",
-          statusName,
-          "Dispositivo non comunicante",
-          "isDeviceCommunicating = false. " + dateEvidence,
-          "Verificare alimentazione, installazione, copertura rete e stato GO device.",
-          2,
-          { deviceId: entityId(device), hasMapLocation: hasMapLocation }
-        );
-      } else if (oldDays !== null && oldDays >= offlineDays) {
-        addIssue(
-          communicationIssues,
-          "Comunicazione",
-          "Critica",
-          statusName,
-          "Ultimo dato troppo vecchio",
-          dateEvidence,
-          "Controllare se il veicolo è fermo, scollegato o se il dispositivo non comunica.",
-          3,
-          { deviceId: entityId(device), hasMapLocation: hasMapLocation }
-        );
-      }
-
-      var activeExceptionCount = status.exceptionEvents ? status.exceptionEvents.length : 0;
-      if (activeExceptionCount >= activeExceptionThreshold) {
-        var ruleNames = [];
-        (status.exceptionEvents || []).forEach(function (event) {
-          var nameRule = ruleDisplayName(event.rule);
-          if (nameRule && ruleNames.indexOf(nameRule) === -1) ruleNames.push(nameRule);
-        });
-
-        addIssue(
-          assetExceptionIssues,
-          "Eccezioni asset",
-          "Media",
-          statusName,
-          "Troppe eccezioni attive sull’asset",
-          activeExceptionCount + " eventi attivi",
-          "Aprire l’asset e verificare se le eccezioni sono reali o se qualche regola è troppo sensibile.",
-          20,
-          { ruleNames: ruleNames, deviceId: entityId(device), hasMapLocation: hasMapLocation }
-        );
-      }
-    });
-  }
-
-  function ruleIdFromEvent(event) {
-    return entityId(event.rule) || ruleDisplayName(event.rule);
-  }
-
-  function analyseNoisyRules(exceptionEvents, lookbackDays) {
-    noisyRuleIssues = [];
-    var threshold = getNumberInput("ruleExceptionThreshold", 20);
-    var grouped = {};
-
-    exceptionEvents.forEach(function (event) {
-      var key = ruleIdFromEvent(event);
-      var ruleName = ruleDisplayName(event.rule);
-      var asset = event.device ? deviceNameFromRef(event.device) : "";
-
-      if (!grouped[key]) {
-        grouped[key] = {
-          ruleName: ruleName,
-          count: 0,
-          assets: {}
-        };
-      }
-
-      grouped[key].count += 1;
-      if (asset) grouped[key].assets[asset] = true;
-    });
-
-    Object.keys(grouped).forEach(function (key) {
-      var item = grouped[key];
-      var assets = Object.keys(item.assets);
-
-      if (item.count >= threshold) {
-        addIssue(
-          noisyRuleIssues,
-          "Regole rumorose",
-          "Media",
-          item.ruleName,
-          "Regola con troppe exception",
-          item.count + " exception negli ultimi " + lookbackDays + " giorni",
-          "Verificare soglia, gruppi assegnati, destinatari notifiche e reale utilità della regola.",
-          30,
-          { ruleId: key, exceptionCount: item.count, assetCount: assets.length, assets: assets }
-        );
-      }
-    });
-  }
-
-  function rawText(value) {
-    if (value === undefined || value === null) return "";
-    if (typeof value === "object") {
-      if (value.name) return value.name;
-      if (value.id) return entityId(value);
-      try { return JSON.stringify(value); } catch (e) { return ""; }
-    }
-    return String(value);
-  }
-
-  function friendlyCamel(value) {
-    var s = String(value || "");
-    s = s.replace(/Id$/, "");
-    s = s.replace(/^Diagnostic/, "");
-    s = s.replace(/^Controller/, "");
-    return s.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/([A-Z])([A-Z][a-z])/g, "$1 $2");
-  }
-
-  function firstNonEmpty(values) {
-    for (var i = 0; i < values.length; i++) {
-      var v = rawText(values[i]);
-      if (hasValue(v)) return v;
-    }
-    return "";
-  }
-
-  function collectFaultCodes(fault) {
-    var codes = [];
-
-    function add(label, value) {
-      var v = rawText(value);
-      if (hasValue(v)) codes.push(label + ": " + v);
-    }
-
-    add("DTC", fault.dtc || fault.dtcCode || fault.diagnosticTroubleCode);
-    add("Codice", fault.code || fault.faultCode || fault.diagnosticCode);
-    add("SPN", fault.suspectParameterNumber || fault.spn);
-    add("FMI", fault.failureModeIdentifier || fault.fmi);
-    add("PGN", fault.parameterGroupNumber || fault.pgn);
-    add("SA", fault.sourceAddress);
-    add("Class", fault.classCode);
-
-    if (fault.diagnostic) {
-      add("Diagnostic code", fault.diagnostic.code || fault.diagnostic.diagnosticCode || fault.diagnostic.sourceCode);
-    }
-
-    // Rimuove duplicati identici.
-    var unique = [];
-    codes.forEach(function (c) {
-      if (unique.indexOf(c) === -1) unique.push(c);
-    });
-    return unique;
-  }
-
-  function faultStateText(fault) {
-    var raw = firstNonEmpty([fault.state, fault.status, fault.faultState]);
-    if (raw) return raw;
-    return "Non indicato";
-  }
-
-  function faultDiagnosticText(fault) {
-    var diagnostic = rawText(fault.diagnostic);
-    if (!diagnostic && fault.diagnostic && fault.diagnostic.name) diagnostic = fault.diagnostic.name;
-    if (!diagnostic) diagnostic = "Diagnostica non descritta";
-    return friendlyCamel(diagnostic);
-  }
-
-  function faultControllerText(fault) {
-    var controller = rawText(fault.controller);
-    return controller ? friendlyCamel(controller) : "";
-  }
-
-  function faultFailureModeText(fault) {
-    var fm = rawText(fault.failureMode);
-    return fm ? friendlyCamel(fm) : "";
-  }
-
-  function faultTitle(fault) {
-    var codes = collectFaultCodes(fault);
-    var diagnostic = faultDiagnosticText(fault);
-
-    if (codes.length) {
-      return codes.join(" | ") + " — " + diagnostic;
-    }
-
-    return "Codice non disponibile — " + diagnostic;
-  }
-
-  function faultSeverity(fault) {
-    var raw = [
-      fault.severity,
-      fault.severityCode,
-      fault.faultSeverity,
-      fault.diagnostic && fault.diagnostic.severity
-    ].map(rawText).join(" ").toLowerCase();
-
-    if (fault.redStopLamp === true) return "Critica";
-    if (fault.protectWarningLamp === true) return "Critica";
-    if (raw.indexOf("critical") !== -1 || raw.indexOf("high") !== -1 || raw.indexOf("severe") !== -1) return "Critica";
-    if (raw.indexOf("3") !== -1 || raw.indexOf("4") !== -1 || raw.indexOf("5") !== -1) return "Critica";
-
-    if (fault.amberWarningLamp === true || fault.malfunctionLamp === true) return "Media";
-    if (raw.indexOf("medium") !== -1 || raw.indexOf("moderate") !== -1 || raw.indexOf("warning") !== -1) return "Media";
-    if (raw.indexOf("2") !== -1) return "Media";
-
-    return "Informativa";
-  }
-
-  function isLikelyActiveFault(fault) {
-    var s = faultStateText(fault).toLowerCase();
-    if (!s || s === "non indicato") return true;
-    return s.indexOf("active") !== -1 || s.indexOf("pending") !== -1 || s.indexOf("fault") !== -1;
-  }
-
-  function analyseFaults(faultData, lookbackDays) {
-    faultIssues = [];
-
-    faultData.forEach(function (fault) {
-      if (!isLikelyActiveFault(fault)) return;
-
-      var asset = fault.device ? deviceNameFromRef(fault.device) : "Asset non indicato";
-      var severity = faultSeverity(fault);
-      var state = faultStateText(fault);
-      var title = faultTitle(fault);
-      var controller = faultControllerText(fault);
-      var failureMode = faultFailureModeText(fault);
-
-      var evidenceParts = [
-        "Data: " + formatDate(fault.dateTime),
-        "Periodo: ultimi " + lookbackDays + " giorni"
-      ];
-
-      if (controller) evidenceParts.push("Controller: " + controller);
-      if (failureMode) evidenceParts.push("Failure mode: " + failureMode);
-      if (fault.count !== undefined) evidenceParts.push("Count: " + fault.count);
-
-      addIssue(
-        faultIssues,
-        "Problemi veicolo",
-        severity,
-        asset,
-        title,
-        evidenceParts.join(". "),
-        severity === "Critica" ? "Priorità officina: verificare il fault prima possibile." : "Verificare ricorrenza e valutare intervento manutentivo.",
-        severity === "Critica" ? 1 : severity === "Media" ? 2 : 3,
-        { state: state, deviceId: entityId(fault.device), hasMapLocation: (latestStatusByDeviceId[entityId(fault.device)] && latestStatusByDeviceId[entityId(fault.device)].latitude !== null && latestStatusByDeviceId[entityId(fault.device)].latitude !== undefined && latestStatusByDeviceId[entityId(fault.device)].longitude !== null && latestStatusByDeviceId[entityId(fault.device)].longitude !== undefined) }
-      );
-    });
-  }
-
-  function sortList(list) {
-    return list.sort(function (a, b) {
-      if (priorityWeight(a.priority) !== priorityWeight(b.priority)) {
-        return priorityWeight(a.priority) - priorityWeight(b.priority);
-      }
-      if (a.sortWeight !== b.sortWeight) return a.sortWeight - b.sortWeight;
-      return String(a.objectName).localeCompare(String(b.objectName));
-    });
-  }
-
-  function textMatch(issue, query) {
-    if (!query) return true;
-    var text = [
-      issue.category, issue.priority, issue.objectName, issue.problem,
-      issue.evidence, issue.action, (issue.missing || []).join(" "),
-      (issue.ruleNames || []).join(" "), (issue.assets || []).join(" ")
-    ].join(" ").toLowerCase();
-    return text.indexOf(query.toLowerCase()) !== -1;
-  }
-
-  function renderDataTable() {
-    var tbody = byId("dataTable");
-    var query = byId("dataSearch").value.trim();
-    var rows = dataRows.slice().filter(function (i) { return textMatch(i, query); })
-      .sort(function (a, b) { return String(a.objectName).localeCompare(String(b.objectName)); });
-
-    tbody.innerHTML = "";
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">Nessun asset da mostrare.</div></td></tr>';
-      return;
-    }
-
-    rows.forEach(function (i) {
-      var tr = document.createElement("tr");
-      tr.innerHTML =
-        "<td>" + assetCell(i) + "</td>" +
-        "<td>" + i.missing.map(function (m) { return "<span class='pill media'>" + escapeHtml(m) + "</span>"; }).join(" ") + "</td>" +
-        "<td><div class='evidence'>" + escapeHtml(i.evidence) + "</div></td>" +
-        "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>" +
-        "<td>" + openCell(i) + "</td>";
-      tbody.appendChild(tr);
-    });
-  }
-
-  function renderIssueTable(tbodyId, list, searchId, columns) {
-    var tbody = byId(tbodyId);
-    var query = searchId ? byId(searchId).value.trim() : "";
-    var rows = sortList(list.slice()).filter(function (i) { return textMatch(i, query); });
-
-    tbody.innerHTML = "";
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="' + columns + '"><div class="empty-state">Nessun elemento da mostrare.</div></td></tr>';
-      return;
-    }
-
-    rows.forEach(function (i) {
-      var tr = document.createElement("tr");
-
-      if (tbodyId === "communicationTable") {
-        tr.innerHTML =
-          "<td><span class='pill " + issuePriorityClass(i.priority) + "'>" + escapeHtml(i.priority) + "</span></td>" +
-          "<td>" + assetCell(i) + "</td>" +
-          "<td><div class='problem-title'>" + escapeHtml(i.problem) + "</div></td>" +
-          "<td><div class='evidence'>" + escapeHtml(i.evidence) + "</div></td>" +
-          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>" +
-          "<td>" + openCell(i) + "</td>";
-      } else if (tbodyId === "assetExceptionTable") {
-        tr.innerHTML =
-          "<td>" + assetCell(i) + "</td>" +
-          "<td><span class='pill media'>" + escapeHtml(i.evidence) + "</span></td>" +
-          "<td><div class='evidence'>" + escapeHtml((i.ruleNames || []).join(", ")) + "</div></td>" +
-          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>" +
-          "<td>" + openCell(i) + "</td>";
-      } else if (tbodyId === "ruleTable") {
-        tr.innerHTML =
-          "<td><div class='problem-title'>" + escapeHtml(i.objectName) + "</div></td>" +
-          "<td><span class='pill media'>" + escapeHtml(String(i.exceptionCount || "")) + "</span></td>" +
-          "<td><div class='evidence'>" + escapeHtml((i.assetCount || 0) + " asset: " + (i.assets || []).slice(0, 8).join(", ")) + "</div></td>" +
-          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>" +
-          "<td>" + openCell(i) + "</td>";
-      } else if (tbodyId === "faultTable") {
-        tr.innerHTML =
-          "<td><span class='pill " + issuePriorityClass(i.priority) + "'>" + escapeHtml(i.priority) + "</span></td>" +
-          "<td>" + assetCell(i) + "</td>" +
-          "<td><div class='problem-title'>" + escapeHtml(i.problem) + "</div></td>" +
-          "<td>" + escapeHtml(i.state || "Non indicato") + "</td>" +
-          "<td><div class='evidence'>" + escapeHtml(i.evidence) + "</div></td>" +
-          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>" +
-          "<td>" + openCell(i) + "</td>";
+        communicationProblem = "Stato dispositivo non disponibile";
+        communicationPriority = "Critica";
+        communicationEvidence = "Nessun DeviceStatusInfo trovato per questo dispositivo attivo.";
       } else {
-        tr.innerHTML =
-          "<td>" + escapeHtml(i.category) + "</td>" +
-          "<td><span class='pill " + issuePriorityClass(i.priority) + "'>" + escapeHtml(i.priority) + "</span></td>" +
-          "<td>" + assetCell(i) + "</td>" +
-          "<td><div class='problem-title'>" + escapeHtml(i.problem) + "</div></td>" +
-          "<td><div class='evidence'>" + escapeHtml(i.evidence) + "</div></td>" +
-          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>" +
-          "<td>" + openCell(i) + "</td>";
+        lastDataText = formatDate(status.dateTime);
+        var oldDays = daysOld(status.dateTime);
+
+        if (status.isDeviceCommunicating === false) {
+          communicationProblem = "Dispositivo non comunicante";
+          communicationPriority = "Critica";
+          communicationEvidence = "isDeviceCommunicating = false. Ultimo dato: " + lastDataText + (oldDays !== null ? " (" + oldDays + " giorni fa)." : ".");
+        } else if (oldDays !== null && oldDays >= offlineDays) {
+          communicationProblem = "Ultimo dato troppo vecchio";
+          communicationPriority = "Critica";
+          communicationEvidence = "Ultimo dato: " + lastDataText + " (" + oldDays + " giorni fa). Soglia: " + offlineDays + " giorni.";
+        }
       }
 
-      tbody.appendChild(tr);
+      var needsFix = missing.length > 0 || communicationProblem !== "";
+
+      var planRow = {
+        deviceId: deviceId,
+        assetName: name,
+        serialNumber: serialNumber,
+        vin: vin,
+        licensePlate: plate,
+        operationalGroupNames: opsGroupNames,
+        missingLabels: missing,
+        missingDetails: missingDetails,
+        communicationProblem: communicationProblem,
+        communicationPriority: communicationPriority,
+        communicationEvidence: communicationEvidence,
+        lastDataText: lastDataText,
+        needsFix: needsFix,
+        evidence: buildPlanEvidence(missingDetails, communicationEvidence),
+        action: buildPlanAction(missing, communicationProblem)
+      };
+
+      planRows.push(planRow);
+
+      if (missing.length > 0) {
+        dataRows.push(planRow);
+      }
+
+      if (communicationProblem) {
+        communicationRows.push(planRow);
+      }
+
+      if (!needsFix) {
+        cleanRows.push(planRow);
+      }
     });
+  }
+
+  function buildPlanEvidence(missingDetails, communicationEvidence) {
+    var parts = [];
+    if (missingDetails && missingDetails.length) parts.push("Anagrafica: " + missingDetails.join("; ") + ".");
+    if (communicationEvidence) parts.push("Comunicazione: " + communicationEvidence);
+    if (!parts.length) return "Nessun problema base rilevato.";
+    return parts.join(" ");
+  }
+
+  function buildPlanAction(missing, communicationProblem) {
+    var actions = [];
+
+    if (missing && missing.length) {
+      actions.push("completare " + missing.join(", ").toLowerCase());
+    }
+
+    if (communicationProblem) {
+      actions.push("verificare installazione, alimentazione, copertura e stato dispositivo");
+    }
+
+    if (!actions.length) return "Nessuna azione richiesta nei controlli base.";
+    return actions.join("; ") + ".";
+  }
+
+  function renderSummary() {
+    var missingDataCount = planRows.reduce(function (sum, row) { return sum + row.missingLabels.length; }, 0);
+    var missingGroupCount = planRows.filter(function (row) { return row.missingLabels.indexOf("Nessun gruppo operativo") !== -1; }).length;
+    var assetsToFix = planRows.filter(function (row) { return row.needsFix; }).length;
+
+    setText("assetCount", planRows.length);
+    setText("assetsToFixCount", assetsToFix);
+    setText("missingDataCount", missingDataCount);
+    setText("missingGroupCount", missingGroupCount);
+    setText("communicationIssueCount", communicationRows.length);
+    setText("cleanAssetCount", cleanRows.length);
   }
 
   function renderActions() {
     var box = byId("actionList");
+    var missingDataCount = planRows.reduce(function (sum, row) { return sum + row.missingLabels.length; }, 0);
+    var missingGroupCount = planRows.filter(function (row) { return row.missingLabels.indexOf("Nessun gruppo operativo") !== -1; }).length;
+    var missingSerialCount = planRows.filter(function (row) { return row.missingLabels.indexOf("Seriale dispositivo mancante") !== -1; }).length;
+    var missingVinCount = planRows.filter(function (row) { return row.missingLabels.indexOf("VIN mancante") !== -1; }).length;
+    var communicationCount = communicationRows.length;
 
-    var totalDataFields = dataRows.reduce(function (sum, row) { return sum + row.missing.length; }, 0);
-    var actions = [
-      {
-        count: totalDataFields,
-        title: "Correggere anagrafiche",
-        text: totalDataFields + " dati da correggere su " + dataRows.length + " asset."
-      },
-      {
-        count: communicationIssues.length,
+    var actions = [];
+
+    if (missingDataCount > 0) {
+      actions.push({
+        count: missingDataCount,
+        title: "Completare dati mancanti",
+        text: missingDataCount + " campi da correggere su " + dataRows.length + " asset."
+      });
+    }
+
+    if (missingGroupCount > 0) {
+      actions.push({
+        count: missingGroupCount,
+        title: "Assegnare gruppi operativi",
+        text: "Asset senza gruppo operativo dopo esclusione dei gruppi integrati Geotab."
+      });
+    }
+
+    if (missingSerialCount > 0 || missingVinCount > 0) {
+      actions.push({
+        count: missingSerialCount + missingVinCount,
+        title: "Pulire anagrafica tecnica",
+        text: "Seriali e VIN mancanti possono compromettere manutenzione, riconciliazione e integrazioni."
+      });
+    }
+
+    if (communicationCount > 0) {
+      actions.push({
+        count: communicationCount,
         title: "Verificare comunicazione",
-        text: "Asset senza stato, non comunicanti o con dati troppo vecchi."
-      },
-      {
-        count: assetExceptionIssues.length,
-        title: "Controllare asset con troppe eccezioni",
-        text: "Asset con molte eccezioni attive nello stato corrente."
-      },
-      {
-        count: noisyRuleIssues.length,
-        title: "Rivedere regole rumorose",
-        text: "Regole che generano molte exception nel periodo selezionato."
-      },
-      {
-        count: faultIssues.length,
-        title: "Gestire problemi veicolo",
-        text: "Fault attivi/recenti letti dai dati diagnostici MyGeotab."
-      }
-    ].filter(function (a) { return a.count > 0; });
+        text: "Asset senza stato, non comunicanti o con ultimo dato troppo vecchio."
+      });
+    }
 
     box.innerHTML = "";
+
     if (!actions.length) {
-      box.innerHTML = '<div class="empty-state">Nessuna priorità rilevata nei controlli attuali.</div>';
+      box.innerHTML = '<div class="empty-state">Nessuna priorità rilevata nei controlli base.</div>';
       return;
     }
 
@@ -851,113 +424,231 @@
     });
   }
 
-  function flattenDataRows() {
-    var rows = [];
-    dataRows.forEach(function (row) {
-      row.missing.forEach(function (missing) {
-        rows.push({
-          category: "Anagrafica",
-          priority: "Media",
-          objectName: row.objectName,
-          problem: missing,
-          evidence: row.evidence,
-          action: row.action,
-          deviceId: row.deviceId
-        });
-      });
+  function renderPlanTable() {
+    var tbody = byId("planTable");
+    var query = getSearchText();
+    var rows = planRows.slice().filter(function (row) {
+      if (showPlanMode === "fix" && !row.needsFix) return false;
+      return rowMatches(row, query);
+    }).sort(function (a, b) {
+      if (a.needsFix !== b.needsFix) return a.needsFix ? -1 : 1;
+      return String(a.assetName).localeCompare(String(b.assetName));
     });
-    return rows;
+
+    tbody.innerHTML = "";
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">Nessun asset da mostrare.</div></td></tr>';
+      return;
+    }
+
+    rows.forEach(function (row) {
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td><div class='asset-name'>" + escapeHtml(row.assetName) + "</div></td>" +
+        "<td>" + statusPills(row) + "</td>" +
+        "<td>" + missingPills(row.missingLabels) + "</td>" +
+        "<td>" + communicationPill(row) + "</td>" +
+        "<td><div class='evidence'>" + escapeHtml(row.evidence) + "</div></td>" +
+        "<td><div class='action'>" + escapeHtml(row.action) + "</div></td>" +
+        "<td>" + openCell(row) + "</td>";
+      tbody.appendChild(tr);
+    });
   }
 
-  function renderAllTables() {
-    var flatData = flattenDataRows();
-    allIssues = [].concat(flatData, communicationIssues, assetExceptionIssues, noisyRuleIssues, faultIssues);
+  function renderDataTable() {
+    var tbody = byId("dataTable");
+    var query = getSearchText();
+    var rows = dataRows.slice().filter(function (row) { return rowMatches(row, query); })
+      .sort(function (a, b) { return String(a.assetName).localeCompare(String(b.assetName)); });
 
-    var totalDataFields = flatData.length;
-    setText("dataIssueCount", totalDataFields);
-    setText("dataIssueHelp", totalDataFields + " dati su " + dataRows.length + " asset");
-    setText("commIssueCount", communicationIssues.length);
-    setText("commIssueHelp", uniqueObjectCount(communicationIssues) + " asset");
-    setText("assetExceptionCount", assetExceptionIssues.length);
-    setText("assetExceptionHelp", uniqueObjectCount(assetExceptionIssues) + " asset");
-    setText("noisyRuleCount", noisyRuleIssues.length);
-    setText("faultIssueCount", faultIssues.length);
-    setText("faultIssueHelp", uniqueObjectCount(faultIssues) + " asset");
+    tbody.innerHTML = "";
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">Nessun dato anagrafico mancante.</div></td></tr>';
+      return;
+    }
 
+    rows.forEach(function (row) {
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td><div class='asset-name'>" + escapeHtml(row.assetName) + "</div></td>" +
+        "<td>" + missingPills(row.missingLabels) + "</td>" +
+        "<td><div class='evidence'>" + escapeHtml(row.missingDetails.join("; ")) + "</div></td>" +
+        "<td><div class='action'>Apri l’asset e completa i campi mancanti indicati.</div></td>" +
+        "<td>" + openCell(row) + "</td>";
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderCommunicationTable() {
+    var tbody = byId("communicationTable");
+    var query = getSearchText();
+    var rows = communicationRows.slice().filter(function (row) { return rowMatches(row, query); })
+      .sort(function (a, b) { return String(a.assetName).localeCompare(String(b.assetName)); });
+
+    tbody.innerHTML = "";
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">Nessun problema di comunicazione rilevato.</div></td></tr>';
+      return;
+    }
+
+    rows.forEach(function (row) {
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td><span class='pill critica'>" + escapeHtml(row.communicationPriority || "Critica") + "</span></td>" +
+        "<td><div class='asset-name'>" + escapeHtml(row.assetName) + "</div></td>" +
+        "<td><div class='problem-title'>" + escapeHtml(row.communicationProblem) + "</div></td>" +
+        "<td>" + escapeHtml(row.lastDataText) + "</td>" +
+        "<td><div class='evidence'>" + escapeHtml(row.communicationEvidence) + "</div></td>" +
+        "<td><div class='action'>Verificare installazione, alimentazione, copertura rete e stato del dispositivo.</div></td>" +
+        "<td>" + openCell(row) + "</td>";
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderCleanTable() {
+    var tbody = byId("cleanTable");
+    var query = getSearchText();
+    var rows = cleanRows.slice().filter(function (row) { return rowMatches(row, query); })
+      .sort(function (a, b) { return String(a.assetName).localeCompare(String(b.assetName)); });
+
+    tbody.innerHTML = "";
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">Nessun asset pulito da mostrare con i filtri attuali.</div></td></tr>';
+      return;
+    }
+
+    rows.forEach(function (row) {
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td><div class='asset-name'>" + escapeHtml(row.assetName) + "</div></td>" +
+        "<td>" + escapeHtml(row.serialNumber || "-") + "</td>" +
+        "<td>" + escapeHtml(row.vin || "-") + "</td>" +
+        "<td>" + escapeHtml(row.operationalGroupNames.join(", ") || "-") + "</td>" +
+        "<td>" + escapeHtml(row.lastDataText) + "</td>" +
+        "<td>" + openCell(row) + "</td>";
+      tbody.appendChild(tr);
+    });
+  }
+
+  function statusPills(row) {
+    if (!row.needsFix) return "<span class='pill ok'>OK</span>";
+
+    var pills = [];
+    if (row.missingLabels.length) pills.push("<span class='pill media'>Anagrafica</span>");
+    if (row.communicationProblem) pills.push("<span class='pill critica'>Comunicazione</span>");
+    return pills.join(" ");
+  }
+
+  function missingPills(labels) {
+    if (!labels || !labels.length) return "<span class='pill ok'>Completa</span>";
+    return labels.map(function (label) {
+      return "<span class='pill media'>" + escapeHtml(label) + "</span>";
+    }).join(" ");
+  }
+
+  function communicationPill(row) {
+    if (!row.communicationProblem) return "<span class='pill ok'>OK</span>";
+    return "<span class='pill critica'>" + escapeHtml(row.communicationProblem) + "</span>";
+  }
+
+  function renderAll() {
+    renderSummary();
     renderActions();
+    renderPlanTable();
     renderDataTable();
-    renderIssueTable("communicationTable", communicationIssues, "communicationSearch", 6);
-    renderIssueTable("assetExceptionTable", assetExceptionIssues, "assetExceptionSearch", 5);
-    renderIssueTable("ruleTable", noisyRuleIssues, "ruleSearch", 5);
-    renderIssueTable("faultTable", faultIssues, "faultSearch", 7);
-    renderIssueTable("allTable", allIssues, "allSearch", 7);
+    renderCommunicationTable();
+    renderCleanTable();
+    buildExportRows();
   }
 
-  function uniqueObjectCount(list) {
-    var map = {};
-    list.forEach(function (i) { map[i.objectName] = true; });
-    return Object.keys(map).length;
+  function buildExportRows() {
+    exportRows = [];
+
+    planRows.forEach(function (row) {
+      if (row.missingLabels.length) {
+        row.missingLabels.forEach(function (missing) {
+          exportRows.push({
+            categoria: "Anagrafica",
+            priorita: "Media",
+            asset: row.assetName,
+            problema: missing,
+            evidenza: row.missingDetails.join("; "),
+            azione: "Completare il dato mancante in anagrafica asset.",
+            deviceId: row.deviceId,
+            seriale: row.serialNumber,
+            vin: row.vin,
+            targa: row.licensePlate,
+            gruppiOperativi: row.operationalGroupNames.join(", "),
+            ultimoDato: row.lastDataText
+          });
+        });
+      }
+
+      if (row.communicationProblem) {
+        exportRows.push({
+          categoria: "Comunicazione",
+          priorita: row.communicationPriority || "Critica",
+          asset: row.assetName,
+          problema: row.communicationProblem,
+          evidenza: row.communicationEvidence,
+          azione: "Verificare installazione, alimentazione, copertura rete e stato dispositivo.",
+          deviceId: row.deviceId,
+          seriale: row.serialNumber,
+          vin: row.vin,
+          targa: row.licensePlate,
+          gruppiOperativi: row.operationalGroupNames.join(", "),
+          ultimoDato: row.lastDataText
+        });
+      }
+    });
   }
 
   function getExportColumns() {
     return [
       "Categoria",
       "Priorità",
-      "Asset/Oggetto",
+      "Asset",
       "Problema",
       "Evidenza",
       "Azione consigliata",
       "Device ID",
-      "Rule ID",
-      "Stato",
-      "Exception",
-      "Asset coinvolti"
+      "Seriale dispositivo",
+      "VIN",
+      "Targa",
+      "Gruppi operativi",
+      "Ultimo dato"
     ];
   }
 
   function getExportRows() {
-    return allIssues.map(function (i) {
+    return exportRows.map(function (row) {
       return [
-        i.category || "",
-        i.priority || "",
-        i.objectName || "",
-        i.problem || "",
-        i.evidence || "",
-        i.action || "",
-        i.deviceId || "",
-        i.ruleId || "",
-        i.state || "",
-        i.exceptionCount !== undefined && i.exceptionCount !== null ? String(i.exceptionCount) : "",
-        i.assets && i.assets.length ? i.assets.join(", ") : ""
+        row.categoria || "",
+        row.priorita || "",
+        row.asset || "",
+        row.problema || "",
+        row.evidenza || "",
+        row.azione || "",
+        row.deviceId || "",
+        row.seriale || "",
+        row.vin || "",
+        row.targa || "",
+        row.gruppiOperativi || "",
+        row.ultimoDato || ""
       ];
     });
   }
 
-  function downloadBlob(blob, filename) {
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
   function exportData() {
-    if (!allIssues.length) {
-      alert("Nessun dato da esportare. Esegui prima il controllo.");
+    if (!exportRows.length) {
+      alert("Nessun dato da esportare. Esegui prima il controllo o verifica che ci siano asset da correggere.");
       return;
     }
 
     var format = byId("exportFormat").value || "csv";
-    if (format === "xlsx") {
-      exportXlsx();
-    } else if (format === "pdf") {
-      exportPdf();
-    } else {
-      exportCsv();
-    }
+    if (format === "xlsx") exportXlsx();
+    else if (format === "pdf") exportPdf();
+    else exportCsv();
   }
 
   function exportCsv() {
@@ -971,12 +662,23 @@
 
     var blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
     var stamp = new Date().toISOString().slice(0, 10);
-    downloadBlob(blob, "geotab_audit_lite_" + stamp + ".csv");
+    downloadBlob(blob, "geotab_data_quality_audit_" + stamp + ".csv");
   }
 
   function toCsvValue(value) {
     var s = String(value === undefined || value === null ? "" : value);
     return '"' + s.replace(/"/g, '""') + '"';
+  }
+
+  function downloadBlob(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   function exportXlsx() {
@@ -1021,11 +723,11 @@
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     });
 
-    downloadBlob(blob, "geotab_audit_lite_" + stamp + ".xlsx");
+    downloadBlob(blob, "geotab_data_quality_audit_" + stamp + ".xlsx");
   }
 
   function buildWorksheetXml(table) {
-    var colWidths = [18, 12, 28, 34, 60, 60, 16, 16, 14, 12, 50];
+    var colWidths = [18, 12, 28, 34, 60, 60, 18, 18, 22, 16, 36, 24];
     var cols = '<cols>' + colWidths.map(function (w, idx) {
       return '<col min="' + (idx + 1) + '" max="' + (idx + 1) + '" width="' + w + '" customWidth="1"/>';
     }).join("") + '</cols>';
@@ -1041,7 +743,7 @@
 
     return '<?xml version="1.0" encoding="UTF-8"?>' +
       '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-      cols + '<sheetData>' + rowsXml + '</sheetData><autoFilter ref="A1:K' + table.length + '"/></worksheet>';
+      cols + '<sheetData>' + rowsXml + '</sheetData><autoFilter ref="A1:L' + table.length + '"/></worksheet>';
   }
 
   function columnName(n) {
@@ -1056,21 +758,18 @@
 
   function xmlEscape(value) {
     return String(value === undefined || value === null ? "" : value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
   function exportPdf() {
     var header = getExportColumns();
     var rows = getExportRows();
-    var stamp = new Date().toISOString().slice(0, 10);
 
-    var html = '<!doctype html><html><head><meta charset="utf-8"><title>Geotab Audit Lite</title>' +
+    var html = '<!doctype html><html><head><meta charset="utf-8"><title>Geotab Data Quality Audit</title>' +
       '<style>body{font-family:Arial,sans-serif;margin:24px;color:#172033}h1{margin:0 0 6px}p{color:#667085;margin:0 0 18px}' +
-      'table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee9;padding:6px;text-align:left;vertical-align:top}' +
+      'table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #d8dee9;padding:6px;text-align:left;vertical-align:top}' +
       'th{background:#f2f4f7}@media print{button{display:none}}</style></head><body>' +
-      '<h1>Geotab Audit Lite</h1><p>Export PDF generato il ' + escapeHtml(new Date().toLocaleString()) + '</p>' +
+      '<h1>Geotab Data Quality Audit</h1><p>Export PDF generato il ' + escapeHtml(new Date().toLocaleString()) + '</p>' +
       '<button onclick="window.print()">Stampa / Salva PDF</button>' +
       '<table><thead><tr>' + header.map(function (h) { return '<th>' + escapeHtml(h) + '</th>'; }).join("") + '</tr></thead><tbody>' +
       rows.map(function (row) {
@@ -1204,70 +903,33 @@
     return table;
   }
 
-  async function loadFaultData(api, fromDate, toDate) {
-    var activeResult = await safeApiGet(api, "FaultData", { fromDate: fromDate, toDate: toDate, state: "Active" }, 5000);
-    if (activeResult.ok) return activeResult.data;
-    var fallback = await safeApiGet(api, "FaultData", { fromDate: fromDate, toDate: toDate }, 5000);
-    return fallback.data;
-  }
-
   async function runAudit(api) {
     var runBtn = byId("runAudit");
-    var exportBtn = byId("exportCsv");
+    var exportBtn = byId("exportBtn");
     runBtn.disabled = true;
     exportBtn.disabled = true;
 
-    dataRows = [];
-    communicationIssues = [];
-    assetExceptionIssues = [];
-    noisyRuleIssues = [];
-    faultIssues = [];
-    allIssues = [];
-
-    byId("status").textContent = "Controllo in corso: lettura Device, DeviceStatusInfo, Rule, ExceptionEvent e FaultData...";
+    byId("status").textContent = "Controllo in corso: lettura Device e DeviceStatusInfo...";
 
     try {
-      var lookbackDays = getNumberInput("lookbackDays", 7);
-      var fromDate = daysAgoIso(lookbackDays);
-      var toDate = new Date().toISOString();
-
       var deviceResult = await safeApiGet(api, "Device", {}, 5000);
       var statusResult = await safeApiGet(api, "DeviceStatusInfo", {}, 5000);
-      var ruleResult = await safeApiGet(api, "Rule", {}, 5000);
 
       var activeDevices = deviceResult.data.filter(isActiveDevice);
-      buildDeviceMap(activeDevices);
-      buildRuleMap(ruleResult.data);
-
-      var exceptionResult = await safeApiGet(api, "ExceptionEvent", { fromDate: fromDate, toDate: toDate }, 5000);
-      await resolveMissingRules(api, statusResult.data, exceptionResult.data);
-
-      analyseDataIssues(activeDevices);
-      analyseCommunicationAndActiveExceptions(activeDevices, statusResult.data);
-
-      setText("assetCount", activeDevices.length);
-
-      if (exceptionResult.ok) {
-        analyseNoisyRules(exceptionResult.data, lookbackDays);
-      } else {
-        addIssue(noisyRuleIssues, "Regole rumorose", "Informativa", "ExceptionEvent", "Dati exception non disponibili", "Non è stato possibile leggere ExceptionEvent nel periodo selezionato.", "Verificare permessi utente o riprovare con un periodo più breve.", 99);
-      }
-
-      var faultData = await loadFaultData(api, fromDate, toDate);
-      analyseFaults(faultData, lookbackDays);
-
-      renderAllTables();
+      buildMaps(activeDevices, statusResult.data);
+      analyse(activeDevices, statusResult.data);
+      renderAll();
 
       byId("status").textContent =
-        "Controllo completato. Asset attivi: " + activeDevices.length +
-        ". Regole lette: " + ruleResult.data.length +
-        ". ExceptionEvent periodo: " + exceptionResult.data.length +
-        ". FaultData periodo: " + faultData.length + ".";
+        "Controllo completato. Asset attivi analizzati: " + planRows.length +
+        ". Asset da correggere: " + planRows.filter(function (r) { return r.needsFix; }).length +
+        ". Dati da correggere esportabili: " + exportRows.length + ".";
 
-      exportBtn.disabled = allIssues.length === 0;
+      exportBtn.disabled = exportRows.length === 0;
     } catch (error) {
-      console.error("Geotab Audit Lite error:", error);
-      byId("status").textContent = "Errore durante il controllo. Apri la console browser per i dettagli.";
+      console.error("Geotab Data Quality Audit error:", error);
+      byId("status").textContent =
+        "Errore durante il controllo. Apri la console browser per i dettagli.";
     } finally {
       runBtn.disabled = false;
     }
@@ -1289,19 +951,6 @@
     });
   }
 
-  function wireSearches() {
-    [
-      ["dataSearch", renderDataTable],
-      ["communicationSearch", function () { renderIssueTable("communicationTable", communicationIssues, "communicationSearch", 6); }],
-      ["assetExceptionSearch", function () { renderIssueTable("assetExceptionTable", assetExceptionIssues, "assetExceptionSearch", 5); }],
-      ["ruleSearch", function () { renderIssueTable("ruleTable", noisyRuleIssues, "ruleSearch", 5); }],
-      ["faultSearch", function () { renderIssueTable("faultTable", faultIssues, "faultSearch", 7); }],
-      ["allSearch", function () { renderIssueTable("allTable", allIssues, "allSearch", 7); }]
-    ].forEach(function (item) {
-      byId(item[0]).addEventListener("input", item[1]);
-    });
-  }
-
   function wireOpenButtons() {
     document.body.addEventListener("click", function (event) {
       var target = event.target;
@@ -1315,11 +964,25 @@
 
   function wireUi(api) {
     wireTabs();
-    wireSearches();
     wireOpenButtons();
 
     byId("runAudit").addEventListener("click", function () { runAudit(api); });
-    byId("exportCsv").addEventListener("click", exportData);
+    byId("exportBtn").addEventListener("click", exportData);
+    byId("globalSearch").addEventListener("input", renderAll);
+
+    byId("showOnlyToFix").addEventListener("click", function () {
+      showPlanMode = "fix";
+      byId("showOnlyToFix").classList.add("active-filter");
+      byId("showAllPlan").classList.remove("active-filter");
+      renderPlanTable();
+    });
+
+    byId("showAllPlan").addEventListener("click", function () {
+      showPlanMode = "all";
+      byId("showAllPlan").classList.add("active-filter");
+      byId("showOnlyToFix").classList.remove("active-filter");
+      renderPlanTable();
+    });
   }
 
   if (!window.geotab || !window.geotab.addin) {
