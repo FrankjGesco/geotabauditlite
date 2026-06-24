@@ -1,34 +1,18 @@
-# Geotab Audit Lite v0.2.0
+# Geotab Audit Lite v0.2.1
 
-Versione più user-friendly dell'add-in.
+Versione uguale alla 0.2.0 ma con riferimenti più semplici, senza parametri `?v=...`.
 
-## Cambiamenti rispetto alla 0.1.0
+## File da caricare nella root del repository GitHub
 
-- Stile spostato in `style.css`, più compatibile se MyGeotab blocca o ignora CSS inline.
-- JavaScript spostato in `app.js`, più facile da mantenere su GitHub.
-- Dashboard più leggibile.
-- Azioni consigliate aggregate.
-- Distribuzione problemi per area.
-- Vista "Solo priorità" di default, così non mostra subito tutte le righe informative.
-- CSV export.
-- Meno duplicazione: se un dispositivo non comunica, l'ultimo dato vecchio viene indicato nella stessa evidenza, non come problema separato.
-
-## File da caricare nel repo GitHub
-
-Carica tutti questi file nella root del repository `geotabauditlite`:
-
-- `index.html`
-- `style.css`
-- `app.js`
-- `addin_config_example.json`
+- index.html
+- style.css
+- app.js
+- addin_config_example.json
+- README.md
 
 ## URL previsto
 
-```text
-https://forlasifrancesco.github.io/geotabauditlite/index.html?v=0.2.0
-```
-
-Se usi un altro username GitHub o un altro nome repo, modifica l'URL in `addin_config_example.json`.
+https://forlasifrancesco.github.io/geotabauditlite/index.html
 
 ## Installazione in MyGeotab
 
@@ -40,17 +24,7 @@ Se usi un altro username GitHub o un altro nome repo, modifica l'URL in `addin_c
 6. Apri "Audit Lite".
 7. Premi "Esegui controllo".
 
-## Debug
+## Nota
 
-Se vedi ancora la pagina non stilizzata:
-
-1. Apri direttamente questo URL nel browser:
-   `https://forlasifrancesco.github.io/geotabauditlite/style.css?v=0.2.0`
-2. Se non si apre, GitHub Pages non ha pubblicato il CSS o il file non è nella root.
-3. In MyGeotab premi CTRL+SHIFT+I > Console e verifica se ci sono errori su `style.css` o `app.js`.
-4. Prova CTRL+F5 per forzare refresh cache.
-
-## Note
-
-L'add-in legge solo `DeviceStatusInfo` e `Device`.
-Non modifica dati, non salva password e non usa backend.
+Nella versione precedente `style.css?v=0.2.0` e `app.js?v=0.2.0` non erano nomi file diversi: erano solo parametri anti-cache.
+Questa versione li rimuove per evitare confusione.
