@@ -1,78 +1,56 @@
-# Geotab Audit Lite
+# Geotab Audit Lite v0.2.0
 
-Add-in MyGeotab statico, pensato per essere pubblicato su GitHub Pages.
+Versione più user-friendly dell'add-in.
 
-## Cosa fa la versione 0.1.0
+## Cambiamenti rispetto alla 0.1.0
 
-Legge direttamente da MyGeotab, usando l'utente già loggato nell'interfaccia:
+- Stile spostato in `style.css`, più compatibile se MyGeotab blocca o ignora CSS inline.
+- JavaScript spostato in `app.js`, più facile da mantenere su GitHub.
+- Dashboard più leggibile.
+- Azioni consigliate aggregate.
+- Distribuzione problemi per area.
+- Vista "Solo priorità" di default, così non mostra subito tutte le righe informative.
+- CSV export.
+- Meno duplicazione: se un dispositivo non comunica, l'ultimo dato vecchio viene indicato nella stessa evidenza, non come problema separato.
 
-- `DeviceStatusInfo`
-- `Device`
+## File da caricare nel repo GitHub
 
-Poi mostra una tabella con problemi base:
+Carica tutti questi file nella root del repository `geotabauditlite`:
 
-- dispositivo non comunicante;
-- ultimo dato troppo vecchio;
-- stato dispositivo non disponibile;
-- seriale mancante;
-- VIN mancante;
-- gruppi mancanti;
-- posizione GPS non disponibile;
-- eventi eccezione attivi.
+- `index.html`
+- `style.css`
+- `app.js`
+- `addin_config_example.json`
 
-Non modifica dati in MyGeotab.
-
-## File
-
-- `index.html`: pagina add-in completa.
-- `addin_config_example.json`: configurazione da incollare in MyGeotab.
-- `README.md`: queste istruzioni.
-
-## Pubblicazione su GitHub Pages
-
-1. Crea un repository chiamato `geotabauditlite`.
-2. Carica `index.html`.
-3. Vai in `Settings > Pages`.
-4. Scegli `Deploy from branch`.
-5. Branch: `main`.
-6. Folder: `/root`.
-7. Salva.
-
-L'URL previsto è:
+## URL previsto
 
 ```text
-https://forlasifrancesco.github.io/geotabauditlite/index.html
+https://forlasifrancesco.github.io/geotabauditlite/index.html?v=0.2.0
 ```
 
-Se il tuo username GitHub o repository è diverso, modifica l'URL dentro `addin_config_example.json`.
+Se usi un altro username GitHub o un altro nome repo, modifica l'URL in `addin_config_example.json`.
 
 ## Installazione in MyGeotab
 
-1. Apri MyGeotab.
-2. Vai in `Administration > System > System Settings > Add-Ins`.
-3. Crea un nuovo Add-In.
-4. Incolla il contenuto di `addin_config_example.json`.
-5. Salva.
-6. Aggiorna la pagina.
-7. Apri `Audit Lite` dal menu.
+1. MyGeotab > Administration > System > System Settings > Add-Ins.
+2. Apri il tuo add-in esistente oppure creane uno nuovo.
+3. Incolla il contenuto di `addin_config_example.json`.
+4. Salva.
+5. Aggiorna MyGeotab con CTRL+F5.
+6. Apri "Audit Lite".
+7. Premi "Esegui controllo".
 
 ## Debug
 
-Se la pagina si apre ma non legge dati:
+Se vedi ancora la pagina non stilizzata:
 
-1. Premi `CTRL + SHIFT + I`.
-2. Apri la tab `Console`.
-3. Premi `Esegui controllo`.
-4. Copia l'errore mostrato in console.
+1. Apri direttamente questo URL nel browser:
+   `https://forlasifrancesco.github.io/geotabauditlite/style.css?v=0.2.0`
+2. Se non si apre, GitHub Pages non ha pubblicato il CSS o il file non è nella root.
+3. In MyGeotab premi CTRL+SHIFT+I > Console e verifica se ci sono errori su `style.css` o `app.js`.
+4. Prova CTRL+F5 per forzare refresh cache.
 
-Possibili cause:
+## Note
 
-- l'utente MyGeotab non ha permessi per leggere Device o DeviceStatusInfo;
-- l'URL GitHub Pages non è corretto;
-- GitHub Pages non è ancora pubblicato;
-- il nome namespace dell'add-in non viene caricato;
-- l'istanza MyGeotab blocca add-in esterni o richiede approvazioni interne.
-
-## Note importanti
-
-Questo è un prototipo tecnico. Prima di usarlo come prodotto va testato su una banca dati reale e rifinito su permessi, performance, privacy, UX e gestione errori.
+L'add-in legge solo `DeviceStatusInfo` e `Device`.
+Non modifica dati, non salva password e non usa backend.
