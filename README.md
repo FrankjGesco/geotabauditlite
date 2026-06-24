@@ -1,21 +1,27 @@
-# Geotab Audit Lite v0.6.0
+# Geotab Audit Lite v0.7.0
 
-## Novità
+## Correzioni principali
 
-- Aggiunti pulsanti **Apri asset** nelle righe asset/anagrafica/comunicazione/fault.
-- Aggiunto pulsante **Mappa** per aprire il veicolo sulla mappa live quando disponibile.
-- Aggiunto pulsante **Apri regole** nella tabella regole rumorose.
-- Aggiunto pulsante **Apri problemi** nella sezione problemi veicolo.
-- UI più orientata al workflow: leggi problema -> apri schermata MyGeotab -> correggi.
+1. Regole rumorose:
+   - Il pulsante "Apri regole" ora viene mostrato anche nella sezione Regole rumorose.
+   - Il numero di exception non resta più vuoto: viene salvato come `exceptionCount`.
+   - Dove possibile viene passato anche `ruleId`.
 
-## Navigazione
+2. Mappa:
+   - "Mappa" diventa "Mappa live" e viene mostrata solo quando l'asset ha coordinate disponibili nello stato corrente.
+   - Se non ci sono coordinate, viene mostrato "Storico oggi", che prova ad aprire lo storico viaggi dell'asset.
+   - La mappa usa il formato documentato da Geotab: `#map,liveVehicleIds:!(deviceId)`.
 
-L'add-in usa `state.gotoPage("device", { id: deviceId })` per aprire la scheda asset.
-Per la mappa usa `state.gotoPage("map", { liveVehicleIds: "!(deviceId)" })`.
+3. Problemi veicolo:
+   - Il pulsante "Problemi" non prova più a filtrare l'asset con parametri non documentati.
+   - Apre la pagina problemi generica in modo più sicuro.
+   - Per correggere il singolo veicolo usa "Apri asset".
+   - Per filtrare la pagina Problems/Faults direttamente sull'asset serve copiare l'hash URL di MyGeotab dopo aver filtrato manualmente un asset.
 
-Per le regole e i problemi veicolo MyGeotab può variare per versione/interfaccia: se il pulsante non apre la schermata corretta, annota l'hash URL della pagina manuale e aggiornalo in `openRulesPage()` o `openFaultsPage()` in `app.js`.
+4. Stabilità navigazione:
+   - Tutte le aperture sono avvolte in `gotoPageSafe`, così un page id non supportato non dovrebbe più generare errore bloccante dell'add-in.
 
-## File da caricare nella root del repository GitHub
+## File da caricare
 
 - index.html
 - style.css
@@ -25,9 +31,4 @@ Per le regole e i problemi veicolo MyGeotab può variare per versione/interfacci
 
 ## Installazione
 
-1. Carica i file nel repository GitHub Pages.
-2. MyGeotab > Administration > System > System Settings > Add-Ins.
-3. Aggiorna la configurazione con `addin_config_example.json`.
-4. Salva.
-5. Fai CTRL+F5.
-6. Apri Audit Lite.
+Carica i file nella root di GitHub Pages, poi aggiorna la configurazione add-in in MyGeotab con `addin_config_example.json`.

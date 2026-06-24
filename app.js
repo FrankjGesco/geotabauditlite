@@ -4,6 +4,7 @@
   var ADDIN_NAMESPACE = "geotabauditlite";
 
   var deviceById = {};
+  var latestStatusByDeviceId = {};
   var ruleById = {};
   var pageState = null;
 
@@ -25,18 +26,30 @@
     return pageState && typeof pageState.gotoPage === "function";
   }
 
+  function gotoPageSafe(page, params, fallbackHash, label) {
+    try {
+      if (canUseState()) {
+        pageState.gotoPage(page, params || {});
+        return;
+      }
+
+      if (fallbackHash) {
+        window.location.hash = fallbackHash;
+        return;
+      }
+    } catch (e) {
+      console.warn("Navigazione MyGeotab non riuscita:", label || page, e);
+      alert("Non riesco ad aprire automaticamente questa pagina. Prova ad aprirla manualmente da MyGeotab.");
+    }
+  }
+
   function openDevicePage(deviceId) {
     if (!deviceId) {
       alert("ID asset non disponibile per questa riga.");
       return;
     }
 
-    if (canUseState()) {
-      pageState.gotoPage("device", { id: deviceId });
-      return;
-    }
-
-    window.location.hash = "#device,id:" + deviceId;
+    gotoPageSafe("device", { id: deviceId }, "#device,id:" + deviceId, "asset");
   }
 
   function openMapPage(deviceId) {
@@ -45,30 +58,43 @@
       return;
     }
 
-    if (canUseState()) {
-      pageState.gotoPage("map", { liveVehicleIds: "!(" + deviceId + ")" });
+    // Formato documentato da Geotab: #map,liveVehicleIds:!(b12)
+    // Uso lo stesso parametro anche con state.gotoPage.
+    gotoPageSafe("map", { liveVehicleIds: "!(" + deviceId + ")" }, "#map,liveVehicleIds:!(" + deviceId + ")", "mappa live");
+  }
+
+  function openTripsPage(deviceId) {
+    if (!deviceId) {
+      alert("ID asset non disponibile per questa riga.");
       return;
     }
 
-    window.location.hash = "#map,liveVehicleIds:!(" + deviceId + ")";
+    var params = {
+      entityType: "Device",
+      selectedEntities: "!(" + deviceId + ")",
+      dateRange: "(interval:Today)"
+    };
+
+    gotoPageSafe(
+      "tripsHistory",
+      params,
+      "#tripsHistory,dateRange:(interval:Today),entityType:Device,selectedEntities:!(" + deviceId + ")",
+      "storico viaggi"
+    );
   }
 
   function openRulesPage(ruleId) {
-    if (canUseState()) {
-      pageState.gotoPage("rules", ruleId ? { id: ruleId } : {});
-      return;
-    }
-
-    window.location.hash = ruleId ? "#rules,id:" + ruleId : "#rules";
+    // In molte banche dati apre la pagina regole. Se l'id non è accettato,
+    // l'utente arriva comunque all'elenco regole.
+    var params = ruleId ? { id: ruleId } : {};
+    var hash = ruleId ? "#rules,id:" + ruleId : "#rules";
+    gotoPageSafe("rules", params, hash, "regole");
   }
 
-  function openFaultsPage() {
-    if (canUseState()) {
-      pageState.gotoPage("faults");
-      return;
-    }
-
-    window.location.hash = "#faults";
+  function openFaultsPage(deviceId) {
+    // La pagina Problems/Faults nuova non ha parametri pubblici documentati per filtrare per asset.
+    // Apro la pagina problemi generica senza generare errori; per la correzione puntuale resta disponibile "Apri asset".
+    gotoPageSafe("faults", {}, "#faults", "problemi");
   }
 
   function assetCell(issue) {
@@ -79,16 +105,27 @@
 
   function openCell(issue) {
     var buttons = [];
+
     if (issue.deviceId) {
       buttons.push("<button class='row-link js-open-device primary' data-device-id='" + jsAttr(issue.deviceId) + "'>Apri asset</button>");
-      buttons.push("<button class='row-link js-open-map' data-device-id='" + jsAttr(issue.deviceId) + "'>Mappa</button>");
+
+      if (issue.hasMapLocation) {
+        buttons.push("<button class='row-link js-open-map' data-device-id='" + jsAttr(issue.deviceId) + "'>Mappa live</button>");
+      } else {
+        buttons.push("<button class='row-link js-open-trips' data-device-id='" + jsAttr(issue.deviceId) + "'>Storico oggi</button>");
+      }
     }
-    if (issue.ruleId) {
+
+    if (issue.category === "Regole rumorose") {
+      buttons.push("<button class='row-link js-open-rules' data-rule-id='" + jsAttr(issue.ruleId || "") + "'>Apri regole</button>");
+    } else if (issue.ruleId) {
       buttons.push("<button class='row-link js-open-rules' data-rule-id='" + jsAttr(issue.ruleId || "") + "'>Apri regole</button>");
     }
+
     if (issue.category === "Problemi veicolo") {
-      buttons.push("<button class='row-link js-open-faults'>Apri problemi</button>");
+      buttons.push("<button class='row-link js-open-faults' data-device-id='" + jsAttr(issue.deviceId || "") + "'>Problemi</button>");
     }
+
     if (!buttons.length) return "<span class='meta'>N/D</span>";
     return "<div class='row-actions'>" + buttons.join("") + "</div>";
   }
@@ -404,9 +441,13 @@
     var activeExceptionThreshold = getNumberInput("assetExceptionThreshold", 3);
 
     var statusByDeviceId = {};
+    latestStatusByDeviceId = {};
     statuses.forEach(function (statusItem) {
       var id = entityId(statusItem.device);
-      if (id) statusByDeviceId[id] = statusItem;
+      if (id) {
+        statusByDeviceId[id] = statusItem;
+        latestStatusByDeviceId[id] = statusItem;
+      }
     });
 
     activeDevices.forEach(function (device) {
@@ -423,12 +464,13 @@
           "Nessun DeviceStatusInfo trovato per questo dispositivo attivo.",
           "Verificare se l’asset è speciale, se il dispositivo è installato o se l’asset deve essere archiviato.",
           1,
-          { deviceId: entityId(device) }
+          { deviceId: entityId(device), hasMapLocation: false }
         );
         return;
       }
 
       var statusName = deviceNameFromRef(status.device);
+      var hasMapLocation = status.latitude !== undefined && status.longitude !== undefined && status.latitude !== null && status.longitude !== null;
       var oldDays = daysOld(status.dateTime);
       var dateEvidence = "Ultimo dato: " + formatDate(status.dateTime);
       if (oldDays !== null) dateEvidence += " (" + oldDays + " giorni fa).";
@@ -443,7 +485,7 @@
           "isDeviceCommunicating = false. " + dateEvidence,
           "Verificare alimentazione, installazione, copertura rete e stato GO device.",
           2,
-          { deviceId: entityId(device) }
+          { deviceId: entityId(device), hasMapLocation: hasMapLocation }
         );
       } else if (oldDays !== null && oldDays >= offlineDays) {
         addIssue(
@@ -455,7 +497,7 @@
           dateEvidence,
           "Controllare se il veicolo è fermo, scollegato o se il dispositivo non comunica.",
           3,
-          { deviceId: entityId(device) }
+          { deviceId: entityId(device), hasMapLocation: hasMapLocation }
         );
       }
 
@@ -476,7 +518,7 @@
           activeExceptionCount + " eventi attivi",
           "Aprire l’asset e verificare se le eccezioni sono reali o se qualche regola è troppo sensibile.",
           20,
-          { ruleNames: ruleNames, deviceId: entityId(device) }
+          { ruleNames: ruleNames, deviceId: entityId(device), hasMapLocation: hasMapLocation }
         );
       }
     });
@@ -522,7 +564,7 @@
           item.count + " exception negli ultimi " + lookbackDays + " giorni",
           "Verificare soglia, gruppi assegnati, destinatari notifiche e reale utilità della regola.",
           30,
-          { assetCount: assets.length, assets: assets }
+          { ruleId: key, exceptionCount: item.count, assetCount: assets.length, assets: assets }
         );
       }
     });
@@ -673,7 +715,7 @@
         evidenceParts.join(". "),
         severity === "Critica" ? "Priorità officina: verificare il fault prima possibile." : "Verificare ricorrenza e valutare intervento manutentivo.",
         severity === "Critica" ? 1 : severity === "Media" ? 2 : 3,
-        { state: state, deviceId: entityId(fault.device) }
+        { state: state, deviceId: entityId(fault.device), hasMapLocation: (latestStatusByDeviceId[entityId(fault.device)] && latestStatusByDeviceId[entityId(fault.device)].latitude !== null && latestStatusByDeviceId[entityId(fault.device)].latitude !== undefined && latestStatusByDeviceId[entityId(fault.device)].longitude !== null && latestStatusByDeviceId[entityId(fault.device)].longitude !== undefined) }
       );
     });
   }
@@ -1011,10 +1053,12 @@
         openDevicePage(target.getAttribute("data-device-id"));
       } else if (target.classList.contains("js-open-map")) {
         openMapPage(target.getAttribute("data-device-id"));
+      } else if (target.classList.contains("js-open-trips")) {
+        openTripsPage(target.getAttribute("data-device-id"));
       } else if (target.classList.contains("js-open-rules")) {
         openRulesPage(target.getAttribute("data-rule-id"));
       } else if (target.classList.contains("js-open-faults")) {
-        openFaultsPage();
+        openFaultsPage(target.getAttribute("data-device-id"));
       }
     });
   }
