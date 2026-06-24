@@ -179,6 +179,13 @@ h2 {
   color: #7a2e0e;
 }
 
+.notice.info {
+  background: #eff8ff;
+  border-color: var(--low-border);
+  color: #1849a9;
+  margin-bottom: 16px;
+}
+
 .hidden { display: none; }
 
 .summary-grid {
@@ -448,4 +455,52 @@ tr:hover td { background: #fafafa; }
 @media (max-width: 560px) {
   .app-shell { padding: 14px; }
   .summary-grid { grid-template-columns: 1fr; }
+}
+
+
+.object-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.object-name {
+  font-weight: 800;
+  color: var(--text);
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.row-link {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: #1849a9;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.row-link:hover {
+  background: #eff8ff;
+  border-color: var(--low-border);
+}
+
+.row-link.primary {
+  background: #eff8ff;
+  border-color: var(--low-border);
+}
+
+.row-link.disabled,
+.row-link:disabled {
+  color: var(--muted);
+  background: var(--surface-soft);
+  cursor: not-allowed;
 }

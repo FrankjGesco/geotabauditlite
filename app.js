@@ -5,6 +5,7 @@
 
   var deviceById = {};
   var ruleById = {};
+  var pageState = null;
 
   var dataRows = [];
   var communicationIssues = [];
@@ -15,6 +16,82 @@
 
   function byId(id) { return document.getElementById(id); }
   function setText(id, value) { byId(id).textContent = value; }
+
+  function jsAttr(value) {
+    return escapeHtml(value).replace(/`/g, "&#096;");
+  }
+
+  function canUseState() {
+    return pageState && typeof pageState.gotoPage === "function";
+  }
+
+  function openDevicePage(deviceId) {
+    if (!deviceId) {
+      alert("ID asset non disponibile per questa riga.");
+      return;
+    }
+
+    if (canUseState()) {
+      pageState.gotoPage("device", { id: deviceId });
+      return;
+    }
+
+    window.location.hash = "#device,id:" + deviceId;
+  }
+
+  function openMapPage(deviceId) {
+    if (!deviceId) {
+      alert("ID asset non disponibile per questa riga.");
+      return;
+    }
+
+    if (canUseState()) {
+      pageState.gotoPage("map", { liveVehicleIds: "!(" + deviceId + ")" });
+      return;
+    }
+
+    window.location.hash = "#map,liveVehicleIds:!(" + deviceId + ")";
+  }
+
+  function openRulesPage(ruleId) {
+    if (canUseState()) {
+      pageState.gotoPage("rules", ruleId ? { id: ruleId } : {});
+      return;
+    }
+
+    window.location.hash = ruleId ? "#rules,id:" + ruleId : "#rules";
+  }
+
+  function openFaultsPage() {
+    if (canUseState()) {
+      pageState.gotoPage("faults");
+      return;
+    }
+
+    window.location.hash = "#faults";
+  }
+
+  function assetCell(issue) {
+    return "<div class='object-cell'><span class='object-name'>" + escapeHtml(issue.objectName) + "</span>" +
+      (issue.deviceId ? "<button class='row-link js-open-device primary' data-device-id='" + jsAttr(issue.deviceId) + "'>Apri asset</button>" : "") +
+      "</div>";
+  }
+
+  function openCell(issue) {
+    var buttons = [];
+    if (issue.deviceId) {
+      buttons.push("<button class='row-link js-open-device primary' data-device-id='" + jsAttr(issue.deviceId) + "'>Apri asset</button>");
+      buttons.push("<button class='row-link js-open-map' data-device-id='" + jsAttr(issue.deviceId) + "'>Mappa</button>");
+    }
+    if (issue.ruleId) {
+      buttons.push("<button class='row-link js-open-rules' data-rule-id='" + jsAttr(issue.ruleId || "") + "'>Apri regole</button>");
+    }
+    if (issue.category === "Problemi veicolo") {
+      buttons.push("<button class='row-link js-open-faults'>Apri problemi</button>");
+    }
+    if (!buttons.length) return "<span class='meta'>N/D</span>";
+    return "<div class='row-actions'>" + buttons.join("") + "</div>";
+  }
 
   function escapeHtml(value) {
     return String(value === undefined || value === null ? "" : value)
@@ -312,7 +389,8 @@
           problem: missing.join(" + "),
           evidence: evidences.join("; "),
           action: "Correggere: " + actions.join(", ") + ".",
-          sortWeight: 10
+          sortWeight: 10,
+          deviceId: entityId(device)
         });
       }
     });
@@ -344,7 +422,8 @@
           "Stato dispositivo non disponibile",
           "Nessun DeviceStatusInfo trovato per questo dispositivo attivo.",
           "Verificare se l’asset è speciale, se il dispositivo è installato o se l’asset deve essere archiviato.",
-          1
+          1,
+          { deviceId: entityId(device) }
         );
         return;
       }
@@ -363,7 +442,8 @@
           "Dispositivo non comunicante",
           "isDeviceCommunicating = false. " + dateEvidence,
           "Verificare alimentazione, installazione, copertura rete e stato GO device.",
-          2
+          2,
+          { deviceId: entityId(device) }
         );
       } else if (oldDays !== null && oldDays >= offlineDays) {
         addIssue(
@@ -374,7 +454,8 @@
           "Ultimo dato troppo vecchio",
           dateEvidence,
           "Controllare se il veicolo è fermo, scollegato o se il dispositivo non comunica.",
-          3
+          3,
+          { deviceId: entityId(device) }
         );
       }
 
@@ -395,7 +476,7 @@
           activeExceptionCount + " eventi attivi",
           "Aprire l’asset e verificare se le eccezioni sono reali o se qualche regola è troppo sensibile.",
           20,
-          { ruleNames: ruleNames }
+          { ruleNames: ruleNames, deviceId: entityId(device) }
         );
       }
     });
@@ -592,7 +673,7 @@
         evidenceParts.join(". "),
         severity === "Critica" ? "Priorità officina: verificare il fault prima possibile." : "Verificare ricorrenza e valutare intervento manutentivo.",
         severity === "Critica" ? 1 : severity === "Media" ? 2 : 3,
-        { state: state }
+        { state: state, deviceId: entityId(fault.device) }
       );
     });
   }
@@ -625,17 +706,18 @@
 
     tbody.innerHTML = "";
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">Nessun asset da mostrare.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">Nessun asset da mostrare.</div></td></tr>';
       return;
     }
 
     rows.forEach(function (i) {
       var tr = document.createElement("tr");
       tr.innerHTML =
-        "<td>" + escapeHtml(i.objectName) + "</td>" +
+        "<td>" + assetCell(i) + "</td>" +
         "<td>" + i.missing.map(function (m) { return "<span class='pill media'>" + escapeHtml(m) + "</span>"; }).join(" ") + "</td>" +
         "<td><div class='evidence'>" + escapeHtml(i.evidence) + "</div></td>" +
-        "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>";
+        "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>" +
+        "<td>" + openCell(i) + "</td>";
       tbody.appendChild(tr);
     });
   }
@@ -657,38 +739,43 @@
       if (tbodyId === "communicationTable") {
         tr.innerHTML =
           "<td><span class='pill " + issuePriorityClass(i.priority) + "'>" + escapeHtml(i.priority) + "</span></td>" +
-          "<td>" + escapeHtml(i.objectName) + "</td>" +
+          "<td>" + assetCell(i) + "</td>" +
           "<td><div class='problem-title'>" + escapeHtml(i.problem) + "</div></td>" +
           "<td><div class='evidence'>" + escapeHtml(i.evidence) + "</div></td>" +
-          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>";
+          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>" +
+          "<td>" + openCell(i) + "</td>";
       } else if (tbodyId === "assetExceptionTable") {
         tr.innerHTML =
-          "<td>" + escapeHtml(i.objectName) + "</td>" +
+          "<td>" + assetCell(i) + "</td>" +
           "<td><span class='pill media'>" + escapeHtml(i.evidence) + "</span></td>" +
           "<td><div class='evidence'>" + escapeHtml((i.ruleNames || []).join(", ")) + "</div></td>" +
-          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>";
+          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>" +
+          "<td>" + openCell(i) + "</td>";
       } else if (tbodyId === "ruleTable") {
         tr.innerHTML =
           "<td><div class='problem-title'>" + escapeHtml(i.objectName) + "</div></td>" +
           "<td><span class='pill media'>" + escapeHtml(String(i.exceptionCount || "")) + "</span></td>" +
           "<td><div class='evidence'>" + escapeHtml((i.assetCount || 0) + " asset: " + (i.assets || []).slice(0, 8).join(", ")) + "</div></td>" +
-          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>";
+          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>" +
+          "<td>" + openCell(i) + "</td>";
       } else if (tbodyId === "faultTable") {
         tr.innerHTML =
           "<td><span class='pill " + issuePriorityClass(i.priority) + "'>" + escapeHtml(i.priority) + "</span></td>" +
-          "<td>" + escapeHtml(i.objectName) + "</td>" +
+          "<td>" + assetCell(i) + "</td>" +
           "<td><div class='problem-title'>" + escapeHtml(i.problem) + "</div></td>" +
           "<td>" + escapeHtml(i.state || "Non indicato") + "</td>" +
           "<td><div class='evidence'>" + escapeHtml(i.evidence) + "</div></td>" +
-          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>";
+          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>" +
+          "<td>" + openCell(i) + "</td>";
       } else {
         tr.innerHTML =
           "<td>" + escapeHtml(i.category) + "</td>" +
           "<td><span class='pill " + issuePriorityClass(i.priority) + "'>" + escapeHtml(i.priority) + "</span></td>" +
-          "<td>" + escapeHtml(i.objectName) + "</td>" +
+          "<td>" + assetCell(i) + "</td>" +
           "<td><div class='problem-title'>" + escapeHtml(i.problem) + "</div></td>" +
           "<td><div class='evidence'>" + escapeHtml(i.evidence) + "</div></td>" +
-          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>";
+          "<td><div class='action'>" + escapeHtml(i.action) + "</div></td>" +
+          "<td>" + openCell(i) + "</td>";
       }
 
       tbody.appendChild(tr);
@@ -754,7 +841,8 @@
           objectName: row.objectName,
           problem: missing,
           evidence: row.evidence,
-          action: row.action
+          action: row.action,
+          deviceId: row.deviceId
         });
       });
     });
@@ -778,11 +866,11 @@
 
     renderActions();
     renderDataTable();
-    renderIssueTable("communicationTable", communicationIssues, "communicationSearch", 5);
-    renderIssueTable("assetExceptionTable", assetExceptionIssues, "assetExceptionSearch", 4);
-    renderIssueTable("ruleTable", noisyRuleIssues, "ruleSearch", 4);
-    renderIssueTable("faultTable", faultIssues, "faultSearch", 6);
-    renderIssueTable("allTable", allIssues, "allSearch", 6);
+    renderIssueTable("communicationTable", communicationIssues, "communicationSearch", 6);
+    renderIssueTable("assetExceptionTable", assetExceptionIssues, "assetExceptionSearch", 5);
+    renderIssueTable("ruleTable", noisyRuleIssues, "ruleSearch", 5);
+    renderIssueTable("faultTable", faultIssues, "faultSearch", 7);
+    renderIssueTable("allTable", allIssues, "allSearch", 7);
   }
 
   function uniqueObjectCount(list) {
@@ -904,19 +992,37 @@
   function wireSearches() {
     [
       ["dataSearch", renderDataTable],
-      ["communicationSearch", function () { renderIssueTable("communicationTable", communicationIssues, "communicationSearch", 5); }],
-      ["assetExceptionSearch", function () { renderIssueTable("assetExceptionTable", assetExceptionIssues, "assetExceptionSearch", 4); }],
-      ["ruleSearch", function () { renderIssueTable("ruleTable", noisyRuleIssues, "ruleSearch", 4); }],
-      ["faultSearch", function () { renderIssueTable("faultTable", faultIssues, "faultSearch", 6); }],
-      ["allSearch", function () { renderIssueTable("allTable", allIssues, "allSearch", 6); }]
+      ["communicationSearch", function () { renderIssueTable("communicationTable", communicationIssues, "communicationSearch", 6); }],
+      ["assetExceptionSearch", function () { renderIssueTable("assetExceptionTable", assetExceptionIssues, "assetExceptionSearch", 5); }],
+      ["ruleSearch", function () { renderIssueTable("ruleTable", noisyRuleIssues, "ruleSearch", 5); }],
+      ["faultSearch", function () { renderIssueTable("faultTable", faultIssues, "faultSearch", 7); }],
+      ["allSearch", function () { renderIssueTable("allTable", allIssues, "allSearch", 7); }]
     ].forEach(function (item) {
       byId(item[0]).addEventListener("input", item[1]);
+    });
+  }
+
+  function wireOpenButtons() {
+    document.body.addEventListener("click", function (event) {
+      var target = event.target;
+      if (!target) return;
+
+      if (target.classList.contains("js-open-device")) {
+        openDevicePage(target.getAttribute("data-device-id"));
+      } else if (target.classList.contains("js-open-map")) {
+        openMapPage(target.getAttribute("data-device-id"));
+      } else if (target.classList.contains("js-open-rules")) {
+        openRulesPage(target.getAttribute("data-rule-id"));
+      } else if (target.classList.contains("js-open-faults")) {
+        openFaultsPage();
+      }
     });
   }
 
   function wireUi(api) {
     wireTabs();
     wireSearches();
+    wireOpenButtons();
 
     byId("runAudit").addEventListener("click", function () { runAudit(api); });
     byId("exportCsv").addEventListener("click", exportCsv);
@@ -928,10 +1034,13 @@
     window.geotab.addin[ADDIN_NAMESPACE] = function () {
       return {
         initialize: function (api, state, callback) {
+          pageState = state;
           wireUi(api);
           if (callback) callback();
         },
-        focus: function () {},
+        focus: function (api, state) {
+          pageState = state;
+        },
         blur: function () {}
       };
     };
