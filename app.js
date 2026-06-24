@@ -98,36 +98,14 @@
   }
 
   function assetCell(issue) {
-    return "<div class='object-cell'><span class='object-name'>" + escapeHtml(issue.objectName) + "</span>" +
-      (issue.deviceId ? "<button class='row-link js-open-device primary' data-device-id='" + jsAttr(issue.deviceId) + "'>Apri asset</button>" : "") +
-      "</div>";
+    return "<div class='object-cell'><span class='object-name'>" + escapeHtml(issue.objectName) + "</span></div>";
   }
 
   function openCell(issue) {
-    var buttons = [];
-
-    if (issue.deviceId) {
-      buttons.push("<button class='row-link js-open-device primary' data-device-id='" + jsAttr(issue.deviceId) + "'>Apri asset</button>");
-
-      if (issue.hasMapLocation) {
-        buttons.push("<button class='row-link js-open-map' data-device-id='" + jsAttr(issue.deviceId) + "'>Mappa live</button>");
-      } else {
-        buttons.push("<button class='row-link js-open-trips' data-device-id='" + jsAttr(issue.deviceId) + "'>Storico oggi</button>");
-      }
-    }
-
-    if (issue.category === "Regole rumorose") {
-      buttons.push("<button class='row-link js-open-rules' data-rule-id='" + jsAttr(issue.ruleId || "") + "'>Apri regole</button>");
-    } else if (issue.ruleId) {
-      buttons.push("<button class='row-link js-open-rules' data-rule-id='" + jsAttr(issue.ruleId || "") + "'>Apri regole</button>");
-    }
-
-    if (issue.category === "Problemi veicolo") {
-      buttons.push("<button class='row-link js-open-faults' data-device-id='" + jsAttr(issue.deviceId || "") + "'>Problemi</button>");
-    }
-
-    if (!buttons.length) return "<span class='meta'>N/D</span>";
-    return "<div class='row-actions'>" + buttons.join("") + "</div>";
+    if (!issue.deviceId) return "<span class='meta'>N/D</span>";
+    return "<div class='row-actions'>" +
+      "<button class='row-link js-open-device primary' data-device-id='" + jsAttr(issue.deviceId) + "'>Apri asset</button>" +
+      "</div>";
   }
 
   function escapeHtml(value) {
@@ -921,29 +899,309 @@
     return Object.keys(map).length;
   }
 
-  function exportCsv() {
-    var header = ["Categoria", "Priorità", "Asset/Oggetto", "Problema", "Evidenza", "Azione"];
-    var lines = [header.map(toCsvValue).join(",")];
+  function getExportColumns() {
+    return [
+      "Categoria",
+      "Priorità",
+      "Asset/Oggetto",
+      "Problema",
+      "Evidenza",
+      "Azione consigliata",
+      "Device ID",
+      "Rule ID",
+      "Stato",
+      "Exception",
+      "Asset coinvolti"
+    ];
+  }
 
-    allIssues.forEach(function (i) {
-      lines.push([i.category, i.priority, i.objectName, i.problem, i.evidence, i.action].map(toCsvValue).join(","));
+  function getExportRows() {
+    return allIssues.map(function (i) {
+      return [
+        i.category || "",
+        i.priority || "",
+        i.objectName || "",
+        i.problem || "",
+        i.evidence || "",
+        i.action || "",
+        i.deviceId || "",
+        i.ruleId || "",
+        i.state || "",
+        i.exceptionCount !== undefined && i.exceptionCount !== null ? String(i.exceptionCount) : "",
+        i.assets && i.assets.length ? i.assets.join(", ") : ""
+      ];
     });
+  }
 
-    var blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  function downloadBlob(blob, filename) {
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
-    var stamp = new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = "geotab_audit_lite_" + stamp + ".csv";
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
 
+  function exportData() {
+    if (!allIssues.length) {
+      alert("Nessun dato da esportare. Esegui prima il controllo.");
+      return;
+    }
+
+    var format = byId("exportFormat").value || "csv";
+    if (format === "xlsx") {
+      exportXlsx();
+    } else if (format === "pdf") {
+      exportPdf();
+    } else {
+      exportCsv();
+    }
+  }
+
+  function exportCsv() {
+    var header = getExportColumns();
+    var rows = getExportRows();
+    var lines = [header.map(toCsvValue).join(",")];
+
+    rows.forEach(function (row) {
+      lines.push(row.map(toCsvValue).join(","));
+    });
+
+    var blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    var stamp = new Date().toISOString().slice(0, 10);
+    downloadBlob(blob, "geotab_audit_lite_" + stamp + ".csv");
+  }
+
   function toCsvValue(value) {
     var s = String(value === undefined || value === null ? "" : value);
     return '"' + s.replace(/"/g, '""') + '"';
+  }
+
+  function exportXlsx() {
+    var header = getExportColumns();
+    var rows = getExportRows();
+    var stamp = new Date().toISOString().slice(0, 10);
+
+    var worksheetXml = buildWorksheetXml([header].concat(rows));
+    var files = {
+      "[Content_Types].xml": '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+        '</Types>',
+      "_rels/.rels": '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>',
+      "xl/workbook.xml": '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="Audit" sheetId="1" r:id="rId1"/></sheets></workbook>',
+      "xl/_rels/workbook.xml.rels": '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+        '</Relationships>',
+      "xl/styles.xml": '<?xml version="1.0" encoding="UTF-8"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0"/></cellXfs>' +
+        '</styleSheet>',
+      "xl/worksheets/sheet1.xml": worksheetXml
+    };
+
+    var blob = new Blob([createZip(files)], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+
+    downloadBlob(blob, "geotab_audit_lite_" + stamp + ".xlsx");
+  }
+
+  function buildWorksheetXml(table) {
+    var colWidths = [18, 12, 28, 34, 60, 60, 16, 16, 14, 12, 50];
+    var cols = '<cols>' + colWidths.map(function (w, idx) {
+      return '<col min="' + (idx + 1) + '" max="' + (idx + 1) + '" width="' + w + '" customWidth="1"/>';
+    }).join("") + '</cols>';
+
+    var rowsXml = table.map(function (row, rIdx) {
+      var cells = row.map(function (value, cIdx) {
+        var ref = columnName(cIdx + 1) + (rIdx + 1);
+        var style = rIdx === 0 ? ' s="1"' : '';
+        return '<c r="' + ref + '" t="inlineStr"' + style + '><is><t>' + xmlEscape(value) + '</t></is></c>';
+      }).join("");
+      return '<row r="' + (rIdx + 1) + '">' + cells + '</row>';
+    }).join("");
+
+    return '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      cols + '<sheetData>' + rowsXml + '</sheetData><autoFilter ref="A1:K' + table.length + '"/></worksheet>';
+  }
+
+  function columnName(n) {
+    var name = "";
+    while (n > 0) {
+      var rem = (n - 1) % 26;
+      name = String.fromCharCode(65 + rem) + name;
+      n = Math.floor((n - 1) / 26);
+    }
+    return name;
+  }
+
+  function xmlEscape(value) {
+    return String(value === undefined || value === null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function exportPdf() {
+    var header = getExportColumns();
+    var rows = getExportRows();
+    var stamp = new Date().toISOString().slice(0, 10);
+
+    var html = '<!doctype html><html><head><meta charset="utf-8"><title>Geotab Audit Lite</title>' +
+      '<style>body{font-family:Arial,sans-serif;margin:24px;color:#172033}h1{margin:0 0 6px}p{color:#667085;margin:0 0 18px}' +
+      'table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee9;padding:6px;text-align:left;vertical-align:top}' +
+      'th{background:#f2f4f7}@media print{button{display:none}}</style></head><body>' +
+      '<h1>Geotab Audit Lite</h1><p>Export PDF generato il ' + escapeHtml(new Date().toLocaleString()) + '</p>' +
+      '<button onclick="window.print()">Stampa / Salva PDF</button>' +
+      '<table><thead><tr>' + header.map(function (h) { return '<th>' + escapeHtml(h) + '</th>'; }).join("") + '</tr></thead><tbody>' +
+      rows.map(function (row) {
+        return '<tr>' + row.map(function (cell) { return '<td>' + escapeHtml(cell) + '</td>'; }).join("") + '</tr>';
+      }).join("") +
+      '</tbody></table></body></html>';
+
+    var w = window.open("", "_blank");
+    if (!w) {
+      alert("Popup bloccato dal browser. Consenti i popup per esportare in PDF.");
+      return;
+    }
+
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+  }
+
+  function createZip(files) {
+    var encoder = new TextEncoder();
+    var fileRecords = [];
+    var chunks = [];
+    var offset = 0;
+
+    Object.keys(files).forEach(function (name) {
+      var nameBytes = encoder.encode(name);
+      var dataBytes = encoder.encode(files[name]);
+      var crc = crc32(dataBytes);
+      var local = new Uint8Array(30 + nameBytes.length);
+
+      writeUint32(local, 0, 0x04034b50);
+      writeUint16(local, 4, 20);
+      writeUint16(local, 6, 0);
+      writeUint16(local, 8, 0);
+      writeUint16(local, 10, 0);
+      writeUint16(local, 12, 0);
+      writeUint32(local, 14, crc);
+      writeUint32(local, 18, dataBytes.length);
+      writeUint32(local, 22, dataBytes.length);
+      writeUint16(local, 26, nameBytes.length);
+      writeUint16(local, 28, 0);
+      local.set(nameBytes, 30);
+
+      chunks.push(local, dataBytes);
+      fileRecords.push({ nameBytes: nameBytes, dataBytes: dataBytes, crc: crc, offset: offset });
+      offset += local.length + dataBytes.length;
+    });
+
+    var centralStart = offset;
+
+    fileRecords.forEach(function (rec) {
+      var central = new Uint8Array(46 + rec.nameBytes.length);
+
+      writeUint32(central, 0, 0x02014b50);
+      writeUint16(central, 4, 20);
+      writeUint16(central, 6, 20);
+      writeUint16(central, 8, 0);
+      writeUint16(central, 10, 0);
+      writeUint16(central, 12, 0);
+      writeUint16(central, 14, 0);
+      writeUint32(central, 16, rec.crc);
+      writeUint32(central, 20, rec.dataBytes.length);
+      writeUint32(central, 24, rec.dataBytes.length);
+      writeUint16(central, 28, rec.nameBytes.length);
+      writeUint16(central, 30, 0);
+      writeUint16(central, 32, 0);
+      writeUint16(central, 34, 0);
+      writeUint16(central, 36, 0);
+      writeUint32(central, 38, 0);
+      writeUint32(central, 42, rec.offset);
+      central.set(rec.nameBytes, 46);
+
+      chunks.push(central);
+      offset += central.length;
+    });
+
+    var centralSize = offset - centralStart;
+    var end = new Uint8Array(22);
+    writeUint32(end, 0, 0x06054b50);
+    writeUint16(end, 4, 0);
+    writeUint16(end, 6, 0);
+    writeUint16(end, 8, fileRecords.length);
+    writeUint16(end, 10, fileRecords.length);
+    writeUint32(end, 12, centralSize);
+    writeUint32(end, 16, centralStart);
+    writeUint16(end, 20, 0);
+    chunks.push(end);
+
+    var total = chunks.reduce(function (sum, chunk) { return sum + chunk.length; }, 0);
+    var out = new Uint8Array(total);
+    var pos = 0;
+    chunks.forEach(function (chunk) {
+      out.set(chunk, pos);
+      pos += chunk.length;
+    });
+
+    return out;
+  }
+
+  function writeUint16(arr, offset, value) {
+    arr[offset] = value & 255;
+    arr[offset + 1] = (value >>> 8) & 255;
+  }
+
+  function writeUint32(arr, offset, value) {
+    arr[offset] = value & 255;
+    arr[offset + 1] = (value >>> 8) & 255;
+    arr[offset + 2] = (value >>> 16) & 255;
+    arr[offset + 3] = (value >>> 24) & 255;
+  }
+
+  function crc32(bytes) {
+    var table = crc32.table || (crc32.table = makeCrcTable());
+    var crc = -1;
+    for (var i = 0; i < bytes.length; i++) {
+      crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 0xff];
+    }
+    return (crc ^ -1) >>> 0;
+  }
+
+  function makeCrcTable() {
+    var table = [];
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) {
+        c = ((c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1));
+      }
+      table[n] = c >>> 0;
+    }
+    return table;
   }
 
   async function loadFaultData(api, fromDate, toDate) {
@@ -1051,14 +1309,6 @@
 
       if (target.classList.contains("js-open-device")) {
         openDevicePage(target.getAttribute("data-device-id"));
-      } else if (target.classList.contains("js-open-map")) {
-        openMapPage(target.getAttribute("data-device-id"));
-      } else if (target.classList.contains("js-open-trips")) {
-        openTripsPage(target.getAttribute("data-device-id"));
-      } else if (target.classList.contains("js-open-rules")) {
-        openRulesPage(target.getAttribute("data-rule-id"));
-      } else if (target.classList.contains("js-open-faults")) {
-        openFaultsPage(target.getAttribute("data-device-id"));
       }
     });
   }
@@ -1069,7 +1319,7 @@
     wireOpenButtons();
 
     byId("runAudit").addEventListener("click", function () { runAudit(api); });
-    byId("exportCsv").addEventListener("click", exportCsv);
+    byId("exportCsv").addEventListener("click", exportData);
   }
 
   if (!window.geotab || !window.geotab.addin) {

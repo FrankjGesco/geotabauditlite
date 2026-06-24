@@ -1,25 +1,29 @@
-# Geotab Audit Lite v0.7.0
+# Geotab Audit Lite v0.8.0
 
-## Correzioni principali
+## Cambiamenti principali
 
-1. Regole rumorose:
-   - Il pulsante "Apri regole" ora viene mostrato anche nella sezione Regole rumorose.
-   - Il numero di exception non resta più vuoto: viene salvato come `exceptionCount`.
-   - Dove possibile viene passato anche `ruleId`.
+1. Rimossi tutti gli indirizzamenti non affidabili.
+   - Resta solo `Apri asset`.
+   - Rimossi Mappa live, Storico oggi, Apri regole e Problemi.
 
-2. Mappa:
-   - "Mappa" diventa "Mappa live" e viene mostrata solo quando l'asset ha coordinate disponibili nello stato corrente.
-   - Se non ci sono coordinate, viene mostrato "Storico oggi", che prova ad aprire lo storico viaggi dell'asset.
-   - La mappa usa il formato documentato da Geotab: `#map,liveVehicleIds:!(deviceId)`.
+2. Export migliorato.
+   - Scelta formato: CSV, XLSX, PDF.
+   - CSV compilato con colonne complete.
+   - XLSX generato direttamente dal browser, senza librerie esterne.
+   - PDF apre una pagina stampabile: usa "Stampa / Salva PDF" del browser.
 
-3. Problemi veicolo:
-   - Il pulsante "Problemi" non prova più a filtrare l'asset con parametri non documentati.
-   - Apre la pagina problemi generica in modo più sicuro.
-   - Per correggere il singolo veicolo usa "Apri asset".
-   - Per filtrare la pagina Problems/Faults direttamente sull'asset serve copiare l'hash URL di MyGeotab dopo aver filtrato manualmente un asset.
-
-4. Stabilità navigazione:
-   - Tutte le aperture sono avvolte in `gotoPageSafe`, così un page id non supportato non dovrebbe più generare errore bloccante dell'add-in.
+3. Colonne export uniformi:
+   - Categoria
+   - Priorità
+   - Asset/Oggetto
+   - Problema
+   - Evidenza
+   - Azione consigliata
+   - Device ID
+   - Rule ID
+   - Stato
+   - Exception
+   - Asset coinvolti
 
 ## File da caricare
 
@@ -31,4 +35,4 @@
 
 ## Installazione
 
-Carica i file nella root di GitHub Pages, poi aggiorna la configurazione add-in in MyGeotab con `addin_config_example.json`.
+Carica i file nella root del repo GitHub Pages, poi aggiorna l'add-in MyGeotab con `addin_config_example.json`.

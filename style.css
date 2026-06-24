@@ -144,7 +144,8 @@ h2 {
   font-weight: 700;
 }
 
-.field input {
+.field input,
+.field select {
   width: 96px;
   min-height: 38px;
   border: 1px solid var(--border);
@@ -510,4 +511,18 @@ tr:hover td { background: #fafafa; }
 .row-link.js-open-trips {
   color: #475467;
   background: var(--surface-soft);
+}
+
+
+/* v0.8.0 refinements */
+.export-field select {
+  min-width: 110px;
+}
+
+.row-actions {
+  justify-content: flex-start;
+}
+
+.object-cell .row-link {
+  margin-top: 0;
 }

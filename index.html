@@ -13,10 +13,10 @@
         <div class="eyebrow">MyGeotab Add-In</div>
         <h1>Geotab Audit Lite</h1>
         <p class="subtitle">
-          Liste operative con collegamenti diretti a MyGeotab. Regole, asset, mappa e problemi sono gestiti con navigazione più sicura.
+          Liste operative per correggere asset, anagrafiche, comunicazione, regole rumorose e problemi veicolo.
         </p>
       </div>
-      <div class="version">v0.7.0</div>
+      <div class="version">v0.8.0</div>
     </header>
 
     <section id="localWarning" class="notice warning hidden">
@@ -26,7 +26,15 @@
     <section class="toolbar">
       <div class="toolbar-left">
         <button id="runAudit" class="btn primary">Esegui controllo</button>
-        <button id="exportCsv" class="btn" disabled>Esporta CSV</button>
+        <label class="field export-field">
+          <span>Formato export</span>
+          <select id="exportFormat">
+            <option value="csv">CSV</option>
+            <option value="xlsx">XLSX</option>
+            <option value="pdf">PDF</option>
+          </select>
+        </label>
+        <button id="exportCsv" class="btn" disabled>Esporta</button>
       </div>
 
       <div class="toolbar-right">
@@ -59,7 +67,7 @@
     <div id="status" class="status">Pronto. Premi “Esegui controllo”.</div>
 
     <section class="notice info">
-      Suggerimento: usa <strong>Apri asset</strong> per correggere anagrafiche, <strong>Mappa live</strong> solo per asset con posizione disponibile, e <strong>Apri regole</strong> per verificare le regole rumorose.
+      Suggerimento: per evitare aperture non affidabili, l’unico collegamento operativo è <strong>Apri asset</strong>. Da lì puoi correggere anagrafica, gruppi e verificare il veicolo.
     </section>
 
     <section class="summary-grid">
