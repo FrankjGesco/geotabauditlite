@@ -13,10 +13,10 @@
         <div class="eyebrow">MyGeotab Add-In</div>
         <h1>Geotab Audit Lite</h1>
         <p class="subtitle">
-          Controllo qualità rapido su comunicazione, anagrafica, gruppi e stato operativo dei dispositivi.
+          Lista operativa degli asset da correggere: anagrafica, comunicazione, eccezioni, regole e problemi veicolo.
         </p>
       </div>
-      <div class="version">v0.3.0</div>
+      <div class="version">v0.4.0</div>
     </header>
 
     <section id="localWarning" class="notice warning hidden">
@@ -31,151 +31,157 @@
 
       <div class="toolbar-right">
         <label class="field">
-          <span>Soglia ultimo dato</span>
+          <span>Ultimo dato oltre</span>
           <input id="offlineDays" type="number" min="1" max="90" value="3">
+          <small>giorni</small>
         </label>
 
         <label class="field">
-          <span>Vista</span>
-          <select id="viewMode">
-            <option value="priority" selected>Solo priorità</option>
-            <option value="all">Tutti i problemi</option>
-          </select>
+          <span>Troppe eccezioni oltre</span>
+          <input id="assetExceptionThreshold" type="number" min="1" max="100" value="3">
+          <small>eventi attivi</small>
         </label>
 
-        <label class="field search-field">
-          <span>Cerca</span>
-          <input id="textFilter" type="text" placeholder="veicolo, problema, area...">
+        <label class="field">
+          <span>Periodo regole/fault</span>
+          <input id="lookbackDays" type="number" min="1" max="60" value="7">
+          <small>giorni</small>
+        </label>
+
+        <label class="field">
+          <span>Regola rumorosa oltre</span>
+          <input id="ruleExceptionThreshold" type="number" min="1" max="1000" value="20">
+          <small>exception</small>
         </label>
       </div>
     </section>
 
-    <div id="status" class="status">
-      Pronto. Premi “Esegui controllo”.
-    </div>
+    <div id="status" class="status">Pronto. Premi “Esegui controllo”.</div>
 
-    <section class="score-grid">
-      <article class="score-card main-score">
-        <div class="score-label">Health score</div>
-        <div id="healthScore" class="score-number">-</div>
-        <div id="healthText" class="score-help">Esegui il controllo per calcolare lo score.</div>
-      </article>
-
-      <article class="score-card">
-        <div class="score-label">Dispositivi attivi</div>
-        <div id="totalDevices" class="score-number">-</div>
-        <div class="score-help">Asset analizzati</div>
-      </article>
-
-      <article class="score-card critical-card">
-        <div class="score-label">Critici</div>
-        <div id="criticalIssues" class="score-number">-</div>
-        <div class="score-help">Asset/problemi da verificare subito</div>
-      </article>
-
-      <article class="score-card medium-card">
-        <div class="score-label">Medi</div>
-        <div id="warningIssues" class="score-number">-</div>
-        <div class="score-help">Anagrafiche e configurazioni</div>
-      </article>
-
-      <article class="score-card low-card">
-        <div class="score-label">Informativi</div>
-        <div id="lowIssues" class="score-number">-</div>
-        <div class="score-help">Nascosti in “Solo priorità”</div>
-      </article>
-    </section>
-
-    <section class="panel score-explain">
-      <div class="panel-header">
-        <div>
-          <h2>Come viene calcolato lo score</h2>
-          <p>È uno score indicativo dell’add-in, non uno score ufficiale Geotab.</p>
-        </div>
-      </div>
-      <div id="scoreFormula" class="formula-box">
-        Esegui il controllo per vedere la formula applicata ai tuoi dati.
-      </div>
-    </section>
-
-    <section class="content-grid">
-      <article class="panel">
-        <div class="panel-header">
-          <div>
-            <h2>Azioni consigliate</h2>
-            <p>Riepilogo operativo, pensato per non leggere decine di righe una per una.</p>
-          </div>
-        </div>
-        <div id="actionsList" class="action-list">
-          <div class="empty-state">Esegui il controllo per vedere le azioni prioritarie.</div>
-        </div>
-      </article>
-
-      <article class="panel">
-        <div class="panel-header">
-          <div>
-            <h2>Distribuzione problemi visibili</h2>
-            <p>Conta dei problemi in base alla vista e ai filtri attivi.</p>
-          </div>
-        </div>
-        <div id="areaBreakdown" class="breakdown">
-          <div class="empty-state">Nessun dato disponibile.</div>
-        </div>
-      </article>
+    <section class="summary-grid">
+      <article class="summary-card"><div class="summary-label">Asset analizzati</div><div id="assetCount" class="summary-number">-</div><div class="summary-help">Dispositivi attivi</div></article>
+      <article class="summary-card data-card"><div class="summary-label">Anagrafica</div><div id="dataIssueCount" class="summary-number">-</div><div class="summary-help">Asset da correggere</div></article>
+      <article class="summary-card comm-card"><div class="summary-label">Comunicazione</div><div id="commIssueCount" class="summary-number">-</div><div class="summary-help">Asset da verificare</div></article>
+      <article class="summary-card exception-card"><div class="summary-label">Eccezioni asset</div><div id="assetExceptionCount" class="summary-number">-</div><div class="summary-help">Troppi eventi attivi</div></article>
+      <article class="summary-card rules-card"><div class="summary-label">Regole rumorose</div><div id="noisyRuleCount" class="summary-number">-</div><div class="summary-help">Da verificare</div></article>
+      <article class="summary-card fault-card"><div class="summary-label">Problemi veicolo</div><div id="faultIssueCount" class="summary-number">-</div><div class="summary-help">Attivi/recenti</div></article>
     </section>
 
     <section class="panel">
-      <div class="panel-header table-header">
+      <div class="panel-header">
         <div>
-          <h2>Problemi trovati</h2>
-          <p id="tableHint">
-            Vista “Solo priorità”: mostra critici e medi. Passa a “Tutti i problemi” per vedere anche gli informativi.
-          </p>
-        </div>
-        <div class="table-tools">
-          <label class="field compact">
-            <span>Gravità</span>
-            <select id="severityFilter">
-              <option value="">Tutte</option>
-              <option value="Critica">Critica</option>
-              <option value="Media">Media</option>
-              <option value="Bassa">Informativa</option>
-            </select>
-          </label>
-          <label class="field compact">
-            <span>Area</span>
-            <select id="areaFilter">
-              <option value="">Tutte</option>
-            </select>
-          </label>
+          <h2>Priorità operative</h2>
+          <p>Questa è la vista pensata per il cliente finale: cosa correggere e dove intervenire.</p>
         </div>
       </div>
+      <div id="actionList" class="action-list">
+        <div class="empty-state">Esegui il controllo per vedere le priorità.</div>
+      </div>
+    </section>
 
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Priorità</th>
-              <th>Area</th>
-              <th>Veicolo / dispositivo</th>
-              <th>Problema</th>
-              <th>Evidenza</th>
-              <th>Azione</th>
-            </tr>
-          </thead>
-          <tbody id="issuesTable">
-            <tr>
-              <td colspan="6">
-                <div class="empty-state">Esegui il controllo per vedere i risultati.</div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <section class="tabs">
+      <button class="tab active" data-tab="data">Anagrafica</button>
+      <button class="tab" data-tab="communication">Comunicazione</button>
+      <button class="tab" data-tab="exceptions">Eccezioni & regole</button>
+      <button class="tab" data-tab="faults">Problemi veicolo</button>
+      <button class="tab" data-tab="all">Tutto</button>
+    </section>
+
+    <section id="tab-data" class="tab-panel active">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Asset con dati anagrafici da correggere</h2>
+            <p>VIN, seriale dispositivo e gruppi operativi mancanti. I gruppi integrati Geotab vengono esclusi dal controllo.</p>
+          </div>
+          <input id="dataSearch" class="table-search" placeholder="Cerca asset...">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Asset</th><th>Dato mancante / problema</th><th>Evidenza</th><th>Azione consigliata</th></tr></thead>
+            <tbody id="dataTable"><tr><td colspan="4"><div class="empty-state">Esegui il controllo.</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-communication" class="tab-panel">
+      <div class="panel">
+        <div class="panel-header">
+          <div><h2>Asset con problemi di comunicazione</h2><p>Dispositivi non comunicanti, stato non disponibile o ultimo dato troppo vecchio.</p></div>
+          <input id="communicationSearch" class="table-search" placeholder="Cerca asset...">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Priorità</th><th>Asset</th><th>Problema</th><th>Evidenza</th><th>Azione consigliata</th></tr></thead>
+            <tbody id="communicationTable"><tr><td colspan="5"><div class="empty-state">Esegui il controllo.</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-exceptions" class="tab-panel">
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-header">
+            <div><h2>Asset con troppe eccezioni attive</h2><p>Asset che in questo momento hanno più eventi eccezione attivi della soglia impostata.</p></div>
+            <input id="assetExceptionSearch" class="table-search" placeholder="Cerca asset...">
+          </div>
+          <div class="table-wrap medium-height">
+            <table>
+              <thead><tr><th>Asset</th><th>Eccezioni attive</th><th>Evidenza</th><th>Azione</th></tr></thead>
+              <tbody id="assetExceptionTable"><tr><td colspan="4"><div class="empty-state">Esegui il controllo.</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div><h2>Regole che generano troppe exception</h2><p>Regole con molte exception nel periodo selezionato: possono essere corrette, ma meritano verifica.</p></div>
+            <input id="ruleSearch" class="table-search" placeholder="Cerca regola...">
+          </div>
+          <div class="table-wrap medium-height">
+            <table>
+              <thead><tr><th>Regola</th><th>Exception</th><th>Asset coinvolti</th><th>Azione</th></tr></thead>
+              <tbody id="ruleTable"><tr><td colspan="4"><div class="empty-state">Esegui il controllo.</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-faults" class="tab-panel">
+      <div class="panel">
+        <div class="panel-header">
+          <div><h2>Problemi attivi/recenti sui veicoli</h2><p>FaultData letti da MyGeotab nel periodo selezionato. Dove disponibile, viene riportato lo stato e la gravità stimata.</p></div>
+          <input id="faultSearch" class="table-search" placeholder="Cerca asset, codice, problema...">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Gravità</th><th>Asset</th><th>Problema / codice</th><th>Stato</th><th>Evidenza</th><th>Azione</th></tr></thead>
+            <tbody id="faultTable"><tr><td colspan="6"><div class="empty-state">Esegui il controllo.</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-all" class="tab-panel">
+      <div class="panel">
+        <div class="panel-header">
+          <div><h2>Tutti i problemi rilevati</h2><p>Vista completa, utile per esportazione o analisi tecnica.</p></div>
+          <input id="allSearch" class="table-search" placeholder="Cerca...">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Categoria</th><th>Priorità</th><th>Asset / oggetto</th><th>Problema</th><th>Evidenza</th><th>Azione</th></tr></thead>
+            <tbody id="allTable"><tr><td colspan="6"><div class="empty-state">Esegui il controllo.</div></td></tr></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
     <footer class="footer">
-      L’add-in legge dati con i permessi dell’utente loggato. Non modifica dati, non salva credenziali e non usa un backend esterno.
+      Add-in in sola lettura. Usa l’utente già loggato in MyGeotab. Non salva credenziali e non usa backend.
     </footer>
   </div>
 
