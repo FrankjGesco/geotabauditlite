@@ -484,3 +484,14 @@ tr:hover td { background: #fafafa; }
   .app-shell { padding: 14px; }
   .summary-grid { grid-template-columns: 1fr; }
 }
+
+
+/* v1.0.1 */
+.field small {
+  max-width: 180px;
+  line-height: 1.25;
+}
+
+.status strong {
+  color: var(--text);
+}

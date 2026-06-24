@@ -12,6 +12,7 @@
   var cleanRows = [];
   var exportRows = [];
   var showPlanMode = "fix";
+  var OLD_DATA_DAYS = 3;
 
   function byId(id) { return document.getElementById(id); }
   function setText(id, value) { byId(id).textContent = value; }
@@ -226,7 +227,7 @@
   }
 
   function analyse(activeDevices, statuses) {
-    var offlineDays = getNumberInput("offlineDays", 3);
+    var offlineDays = OLD_DATA_DAYS;
     var checkLicence = hasLicenceField(activeDevices);
 
     planRows = [];
@@ -284,7 +285,7 @@
         if (status.isDeviceCommunicating === false) {
           communicationProblem = "Dispositivo non comunicante";
           communicationPriority = "Critica";
-          communicationEvidence = "isDeviceCommunicating = false. Ultimo dato: " + lastDataText + (oldDays !== null ? " (" + oldDays + " giorni fa)." : ".");
+          communicationEvidence = "isDeviceCommunicating = false. Ultimo dato: " + lastDataText + (oldDays !== null ? " (" + oldDays + " giorni fa)." : ".") + " Questo controllo è indipendente dalla soglia dato vecchio.";
         } else if (oldDays !== null && oldDays >= offlineDays) {
           communicationProblem = "Ultimo dato troppo vecchio";
           communicationPriority = "Critica";
@@ -920,10 +921,11 @@
       analyse(activeDevices, statusResult.data);
       renderAll();
 
-      byId("status").textContent =
+      byId("status").innerHTML =
         "Controllo completato. Asset attivi analizzati: " + planRows.length +
         ". Asset da correggere: " + planRows.filter(function (r) { return r.needsFix; }).length +
-        ". Dati da correggere esportabili: " + exportRows.length + ".";
+        ". Dati da correggere esportabili: " + exportRows.length + ". " +
+        "<strong>Dato vecchio:</strong> ultimo aggiornamento oltre " + OLD_DATA_DAYS + " giorni.";
 
       exportBtn.disabled = exportRows.length === 0;
     } catch (error) {

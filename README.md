@@ -1,4 +1,4 @@
-# Geotab Data Quality Audit v1.0.0
+# Geotab Data Quality Audit v1.0.2
 
 Versione focalizzata sul prodotto vendibile: controllo qualità della banca dati MyGeotab.
 
@@ -59,3 +59,22 @@ Il report esporta solo il piano correzione, con colonne:
 4. Salva.
 5. Fai CTRL+F5.
 6. Apri "Data Quality Audit".
+
+
+## Correzione v1.0.2
+
+- La soglia `Dato vecchio oltre` ora accetta anche 0.
+- 0 significa: disattiva il controllo "ultimo dato troppo vecchio".
+- La soglia non modifica i casi `Dispositivo non comunicante` o `Stato dispositivo non disponibile`, perché sono problemi indipendenti.
+- Dopo aver eseguito il controllo, cambiando la soglia i risultati vengono ricalcolati automaticamente senza dover rilanciare la lettura API.
+
+
+## Correzione v1.0.2
+
+- Rimosso il campo configurabile `Dato vecchio oltre`.
+- Il controllo usa una soglia fissa di 3 giorni.
+- Questo rende la UI più semplice per l'utente finale.
+- Restano separati i casi:
+  - `Dispositivo non comunicante`
+  - `Stato dispositivo non disponibile`
+  - `Ultimo dato troppo vecchio`

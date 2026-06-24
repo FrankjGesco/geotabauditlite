@@ -13,10 +13,10 @@
         <div class="eyebrow">MyGeotab Add-In</div>
         <h1>Geotab Data Quality Audit</h1>
         <p class="subtitle">
-          Controllo qualità della banca dati MyGeotab: asset da correggere, dati mancanti, gruppi operativi e comunicazione dispositivi.
+          Controllo qualità della banca dati MyGeotab: asset da correggere, dati mancanti, gruppi operativi e comunicazione dispositivi. Il controllo “dato vecchio” usa una soglia fissa di 3 giorni.
         </p>
       </div>
-      <div class="version">v1.0.0</div>
+      <div class="version">v1.0.2</div>
     </header>
 
     <section id="localWarning" class="notice warning hidden">
@@ -40,13 +40,7 @@
       </div>
 
       <div class="toolbar-right">
-        <label class="field">
-          <span>Ultimo dato oltre</span>
-          <input id="offlineDays" type="number" min="1" max="90" value="3">
-          <small>giorni</small>
-        </label>
-
-        <label class="field search-field">
+<label class="field search-field">
           <span>Cerca asset</span>
           <input id="globalSearch" type="text" placeholder="nome asset, VIN, seriale...">
           <small>filtra le tabelle</small>
@@ -54,7 +48,7 @@
       </div>
     </section>
 
-    <div id="status" class="status">Pronto. Premi “Esegui controllo”.</div>
+    <div id="status" class="status">Pronto. Premi “Esegui controllo”. Il dato viene considerato vecchio se l’ultimo aggiornamento supera 3 giorni.</div>
 
     <section class="summary-grid">
       <article class="summary-card">
