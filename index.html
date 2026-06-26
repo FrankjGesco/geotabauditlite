@@ -11,12 +11,12 @@
     <header class="topbar">
       <div>
         <div class="eyebrow">MyGeotab Add-In</div>
-        <h1>Geotab Data Quality Audit</h1>
-        <p class="subtitle">
-          Controllo qualità della banca dati MyGeotab: asset da correggere, dati mancanti, gruppi operativi e comunicazione dispositivi. Il controllo “dato vecchio” usa una soglia fissa di 3 giorni.
+        <h1 id="appTitle">Geotab Data Quality Audit</h1>
+        <p id="subtitle" class="subtitle">
+          Controllo qualità della banca dati MyGeotab: asset da correggere, dati mancanti, gruppi operativi, comunicazione dispositivi e dispositivi non attivi.
         </p>
       </div>
-      <div class="version">v1.0.2</div>
+      <div class="version">v1.1.0</div>
     </header>
 
     <section id="localWarning" class="notice warning hidden">
@@ -25,10 +25,10 @@
 
     <section class="toolbar">
       <div class="toolbar-left">
-        <button id="runAudit" class="btn primary">Esegui controllo</button>
+        <button id="refreshAudit" class="btn primary">Aggiorna ora</button>
 
         <label class="field export-field">
-          <span>Formato export</span>
+          <span id="exportFormatLabel">Formato export</span>
           <select id="exportFormat">
             <option value="csv">CSV</option>
             <option value="xlsx">XLSX</option>
@@ -41,58 +41,64 @@
 
       <div class="toolbar-right">
 <label class="field search-field">
-          <span>Cerca asset</span>
+          <span id="searchLabel">Cerca asset</span>
           <input id="globalSearch" type="text" placeholder="nome asset, VIN, seriale...">
-          <small>filtra le tabelle</small>
+          <small id="searchHelp">filtra le tabelle</small>
         </label>
       </div>
     </section>
 
-    <div id="status" class="status">Pronto. Premi “Esegui controllo”. Il dato viene considerato vecchio se l’ultimo aggiornamento supera 3 giorni.</div>
+    <div id="status" class="status">Pronto. Il controllo parte automaticamente all’apertura.</div>
 
     <section class="summary-grid">
       <article class="summary-card">
-        <div class="summary-label">Asset analizzati</div>
+        <div id="assetLabel" class="summary-label">Asset attivi analizzati</div>
         <div id="assetCount" class="summary-number">-</div>
-        <div class="summary-help">Dispositivi attivi</div>
+        <div id="assetHelp" class="summary-help">Dispositivi attivi</div>
       </article>
 
       <article class="summary-card attention-card">
-        <div class="summary-label">Asset da correggere</div>
+        <div id="fixLabel" class="summary-label">Asset da correggere</div>
         <div id="assetsToFixCount" class="summary-number">-</div>
-        <div class="summary-help">Con almeno un problema</div>
+        <div id="fixHelp" class="summary-help">Con almeno un problema</div>
       </article>
 
       <article class="summary-card data-card">
-        <div class="summary-label">Dati mancanti</div>
+        <div id="missingDataLabel" class="summary-label">Dati mancanti</div>
         <div id="missingDataCount" class="summary-number">-</div>
-        <div class="summary-help">VIN, seriale, targa, gruppi</div>
+        <div id="missingDataHelpText" class="summary-help">VIN, seriale, targa, gruppi</div>
       </article>
 
       <article class="summary-card group-card">
-        <div class="summary-label">Senza gruppo operativo</div>
+        <div id="missingGroupLabel" class="summary-label">Senza gruppo operativo</div>
         <div id="missingGroupCount" class="summary-number">-</div>
-        <div class="summary-help">Esclusi gruppi integrati</div>
+        <div id="missingGroupHelpText" class="summary-help">Esclusi gruppi integrati</div>
       </article>
 
       <article class="summary-card comm-card">
-        <div class="summary-label">Problemi comunicazione</div>
+        <div id="communicationLabel" class="summary-label">Problemi comunicazione</div>
         <div id="communicationIssueCount" class="summary-number">-</div>
-        <div class="summary-help">Non comunicanti / dati vecchi</div>
+        <div id="communicationHelpText" class="summary-help">Non comunicanti / dati vecchi</div>
+      </article>
+
+      <article class="summary-card inactive-card">
+        <div id="inactiveLabel" class="summary-label">Dispositivi non attivi</div>
+        <div id="inactiveDeviceCount" class="summary-number">-</div>
+        <div id="inactiveHelpText" class="summary-help">Non installati o fuori validità</div>
       </article>
 
       <article class="summary-card ok-card">
-        <div class="summary-label">Asset puliti</div>
+        <div id="cleanLabel" class="summary-label">Asset puliti</div>
         <div id="cleanAssetCount" class="summary-number">-</div>
-        <div class="summary-help">Nessun problema base</div>
+        <div id="cleanHelpText" class="summary-help">Nessun problema base</div>
       </article>
     </section>
 
     <section class="panel">
       <div class="panel-header">
         <div>
-          <h2>Priorità operative</h2>
-          <p>Vista cliente finale: cosa sistemare prima per rendere affidabili report, regole e dashboard MyGeotab.</p>
+          <h2 id="prioritiesTitle">Priorità operative</h2>
+          <p id="prioritiesText">Vista cliente finale: cosa sistemare prima per rendere affidabili report, regole e dashboard MyGeotab.</p>
         </div>
       </div>
       <div id="actionList" class="action-list">
@@ -101,18 +107,19 @@
     </section>
 
     <section class="tabs">
-      <button class="tab active" data-tab="plan">Piano correzione</button>
-      <button class="tab" data-tab="data">Anagrafica</button>
-      <button class="tab" data-tab="communication">Comunicazione</button>
-      <button class="tab" data-tab="clean">Asset puliti</button>
+      <button id="tabPlanBtn" class="tab active" data-tab="plan">Piano correzione</button>
+      <button id="tabDataBtn" class="tab" data-tab="data">Anagrafica</button>
+      <button id="tabCommunicationBtn" class="tab" data-tab="communication">Comunicazione</button>
+      <button id="tabInactiveBtn" class="tab" data-tab="inactive">Non attivi</button>
+      <button id="tabCleanBtn" class="tab" data-tab="clean">Asset puliti</button>
     </section>
 
     <section id="tab-plan" class="tab-panel active">
       <div class="panel">
         <div class="panel-header">
           <div>
-            <h2>Piano correzione asset</h2>
-            <p>Una riga per asset. I dati mancanti vengono cumulati, così l’utente sa esattamente cosa correggere.</p>
+            <h2 id="planTitle">Piano correzione asset</h2>
+            <p id="planText">Solo asset attivi. I dispositivi non installati o non attivi sono esclusi dal piano correzione e dall’anagrafica.</p>
           </div>
           <div class="panel-tools">
             <button id="showOnlyToFix" class="btn small active-filter">Solo da correggere</button>
@@ -124,13 +131,13 @@
           <table>
             <thead>
               <tr>
-                <th>Asset</th>
-                <th>Stato</th>
-                <th>Dati mancanti</th>
-                <th>Comunicazione</th>
-                <th>Evidenza</th>
-                <th>Azione consigliata</th>
-                <th>Apri</th>
+                <th data-i18n="thAsset">Asset</th>
+                <th data-i18n="thStatus">Stato</th>
+                <th data-i18n="thMissing">Dati mancanti</th>
+                <th data-i18n="thCommunication">Comunicazione</th>
+                <th data-i18n="thEvidence">Evidenza</th>
+                <th data-i18n="thAction">Azione consigliata</th>
+                <th data-i18n="thOpen">Apri</th>
               </tr>
             </thead>
             <tbody id="planTable">
@@ -145,8 +152,8 @@
       <div class="panel">
         <div class="panel-header">
           <div>
-            <h2>Asset con dati anagrafici mancanti</h2>
-            <p>VIN, seriale dispositivo, targa e gruppi operativi. I gruppi integrati Geotab vengono esclusi dal controllo.</p>
+            <h2 id="dataTitle">Asset attivi con dati anagrafici mancanti</h2>
+            <p id="dataText">VIN, seriale dispositivo, targa e gruppi operativi. I dispositivi non attivi sono esclusi.</p>
           </div>
         </div>
 
@@ -154,11 +161,11 @@
           <table>
             <thead>
               <tr>
-                <th>Asset</th>
+                <th data-i18n="thAsset">Asset</th>
                 <th>Dati da completare</th>
                 <th>Dettaglio</th>
-                <th>Azione consigliata</th>
-                <th>Apri</th>
+                <th data-i18n="thAction">Azione consigliata</th>
+                <th data-i18n="thOpen">Apri</th>
               </tr>
             </thead>
             <tbody id="dataTable">
@@ -173,8 +180,8 @@
       <div class="panel">
         <div class="panel-header">
           <div>
-            <h2>Asset con problemi di comunicazione</h2>
-            <p>Dispositivi non comunicanti, stato non disponibile o ultimo dato più vecchio della soglia impostata.</p>
+            <h2 id="commTitle">Asset attivi con problemi di comunicazione</h2>
+            <p id="commText">Dispositivi attivi non comunicanti, senza stato o con ultimo dato più vecchio della soglia.</p>
           </div>
         </div>
 
@@ -182,13 +189,13 @@
           <table>
             <thead>
               <tr>
-                <th>Priorità</th>
-                <th>Asset</th>
-                <th>Problema</th>
-                <th>Ultimo dato</th>
-                <th>Evidenza</th>
-                <th>Azione consigliata</th>
-                <th>Apri</th>
+                <th data-i18n="thPriority">Priorità</th>
+                <th data-i18n="thAsset">Asset</th>
+                <th data-i18n="thProblem">Problema</th>
+                <th data-i18n="thLastData">Ultimo dato</th>
+                <th data-i18n="thEvidence">Evidenza</th>
+                <th data-i18n="thAction">Azione consigliata</th>
+                <th data-i18n="thOpen">Apri</th>
               </tr>
             </thead>
             <tbody id="communicationTable">
@@ -199,12 +206,12 @@
       </div>
     </section>
 
-    <section id="tab-clean" class="tab-panel">
+    <section id="tab-inactive" class="tab-panel">
       <div class="panel">
         <div class="panel-header">
           <div>
-            <h2>Asset senza problemi base rilevati</h2>
-            <p>Asset che, secondo i controlli attuali, hanno anagrafica minima completa, gruppo operativo e comunicazione regolare.</p>
+            <h2 id="inactiveTitle">Dispositivi non attivi / non installati</h2>
+            <p id="inactiveText">Elenco separato: questi elementi non generano anomalie anagrafiche nel piano correzione.</p>
           </div>
         </div>
 
@@ -212,12 +219,41 @@
           <table>
             <thead>
               <tr>
-                <th>Asset</th>
-                <th>Seriale</th>
-                <th>VIN</th>
-                <th>Gruppi operativi</th>
-                <th>Ultimo dato</th>
-                <th>Apri</th>
+                <th data-i18n="thAsset">Asset</th>
+                <th data-i18n="thReason">Motivo</th>
+                <th data-i18n="thSerial">Seriale</th>
+                <th data-i18n="thVin">VIN</th>
+                <th data-i18n="colPlate">Targa</th>
+                <th data-i18n="thOpen">Apri</th>
+              </tr>
+            </thead>
+            <tbody id="inactiveTable">
+              <tr><td colspan="6"><div class="empty-state">Il controllo partirà automaticamente.</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-clean" class="tab-panel">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 id="cleanTitle">Asset attivi senza problemi base rilevati</h2>
+            <p id="cleanText">Asset attivi con anagrafica minima completa, gruppo operativo e comunicazione regolare.</p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th data-i18n="thAsset">Asset</th>
+                <th data-i18n="thSerial">Seriale</th>
+                <th data-i18n="thVin">VIN</th>
+                <th data-i18n="thGroups">Gruppi operativi</th>
+                <th data-i18n="thLastData">Ultimo dato</th>
+                <th data-i18n="thOpen">Apri</th>
               </tr>
             </thead>
             <tbody id="cleanTable">
@@ -228,7 +264,7 @@
       </div>
     </section>
 
-    <footer class="footer">
+    <footer id="footerText" class="footer">
       Add-in in sola lettura. Usa l’utente già loggato in MyGeotab. Non salva credenziali e non usa backend.
     </footer>
   </div>
