@@ -1230,7 +1230,7 @@
   }
 
   if (!window.geotab || !window.geotab.addin) {
-    detectLanguage(null);
+    currentLanguage = "en";
     applyTranslations();
     byId("localWarning").className = "notice warning";
   } else {

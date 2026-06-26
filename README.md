@@ -1,4 +1,4 @@
-# Vodafone Automotive Quality Audit v1.1.7
+# Vodafone Automotive Quality Audit v1.1.8
 
 Versione focalizzata sul prodotto vendibile: controllo qualità della banca dati MyGeotab.
 
@@ -105,3 +105,10 @@ Il report esporta solo il piano correzione, con colonne:
 ## Correzione v1.1.7
 
 - Rilevamento lingua migliorato: prova prima i dati del profilo utente MyGeotab tramite API User, poi usa state/navigator come fallback.
+
+
+## Correzione v1.1.8
+
+- Aggiornato numero versione visualizzato.
+- Aggiunto cache busting su `app.js` per forzare il caricamento del JavaScript aggiornato da GitHub Pages/MyGeotab.
+- Corretto fallback locale fuori da MyGeotab.
