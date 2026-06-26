@@ -1,4 +1,4 @@
-# Vodafone Automotive Quality Audit v1.1.5
+# Vodafone Automotive Quality Audit v1.1.6
 
 Versione focalizzata sul prodotto vendibile: controllo qualità della banca dati MyGeotab.
 
@@ -92,7 +92,7 @@ Il report esporta solo il piano correzione, con colonne:
 - Corretto export CSV: mantiene la virgola come separatore, ma rimuove virgole interne dai valori per non creare colonne extra in Excel/Text-to-columns.
 
 
-## Correzione v1.1.5
+## Correzione v1.1.6
 
 - Titolo aggiornato a Vodafone Automotive Quality Audit.
 - Rimossa etichetta MyGeotab Add-In dall'header.
@@ -102,6 +102,6 @@ Il report esporta solo il piano correzione, con colonne:
 - Migliorato rilevamento lingua da profilo/state MyGeotab con fallback al browser.
 
 
-## Correzione v1.1.5
+## Correzione v1.1.6
 
 - Rilevamento lingua migliorato: prova prima i dati del profilo utente MyGeotab tramite API User, poi usa state/navigator come fallback.

@@ -99,75 +99,52 @@
 
   function languageFromValue(value) {
     if (!value) return null;
-    var v = String(value).toLowerCase();
-    if (v.indexOf("ital") !== -1 || v === "it" || v.indexOf("it-") === 0 || v.indexOf("it_") === 0 || v.indexOf("it_") === 0) return "it";
-    if (v.indexOf("engl") !== -1 || v === "en" || v.indexOf("en-") === 0 || v.indexOf("en_") === 0 || v.indexOf("en_") === 0) return "en";
-    if (v.indexOf("fran") !== -1 || v === "fr" || v.indexOf("fr-") === 0 || v.indexOf("fr_") === 0) return "fr";
-    if (v.indexOf("span") !== -1 || v.indexOf("espa") !== -1 || v === "es" || v.indexOf("es-") === 0 || v.indexOf("es_") === 0) return "es";
-    if (v.indexOf("germ") !== -1 || v.indexOf("deut") !== -1 || v === "de" || v.indexOf("de-") === 0 || v.indexOf("de_") === 0) return "de";
+    var v = String(value).trim().toLowerCase().replace("_", "-");
+    if (v === "it" || v.indexOf("it-") === 0 || v.indexOf("ital") !== -1) return "it";
+    if (v === "en" || v.indexOf("en-") === 0 || v.indexOf("engl") !== -1) return "en";
     return null;
   }
 
-  function collectLanguageCandidates(obj, candidates, depth) {
-    if (!obj || depth > 5) return;
-    try {
-      if (typeof obj === "string") { candidates.push(obj); return; }
-      ["language", "lang", "culture", "userCulture", "locale", "uiCulture", "displayLanguage", "preferredLanguage", "languageCode", "languageId"].forEach(function (k) {
-        if (obj[k] !== undefined && obj[k] !== null) candidates.push(obj[k]);
-      });
-      ["user", "currentUser", "session", "profile", "database", "options", "settings", "preferences", "entity"].forEach(function (k) {
-        if (obj[k]) collectLanguageCandidates(obj[k], candidates, depth + 1);
-      });
-    } catch (e) {}
-  }
-
-  function setLanguageFromCandidates(candidates, allowBrowserFallback) {
-    for (var i = 0; i < candidates.length; i++) {
-      var found = languageFromValue(candidates[i]);
-      if (found) { currentLanguage = found; return true; }
-    }
-    if (allowBrowserFallback) {
-      currentLanguage = languageFromValue(navigator.language) || languageFromValue(navigator.userLanguage) || "en";
-    }
-    return false;
-  }
-
-  function detectLanguage(state) {
-    var candidates = [];
-    collectLanguageCandidates(state, candidates, 0);
-    setLanguageFromCandidates(candidates, true);
-  }
-
-  function tryGetSessionUserName(api, callback) {
+  function tryGetSessionUserName(api, state, callback) {
     var done = false;
     function finish(name) { if (!done) { done = true; callback(name || ""); } }
+
+    try {
+      if (api && api.userName) { finish(api.userName); return; }
+    } catch (e0) {}
+
+    try {
+      if (state && state.userName) { finish(state.userName); return; }
+      if (state && state.user && state.user.name) { finish(state.user.name); return; }
+      if (state && state.currentUser && state.currentUser.name) { finish(state.currentUser.name); return; }
+    } catch (e1) {}
+
+    try {
+      if (api && api.credentials) {
+        finish(api.credentials.userName || api.credentials.username || api.credentials.user || api.credentials.databaseUser);
+        return;
+      }
+    } catch (e2) {}
 
     try {
       if (api && typeof api.getSession === "function") {
         api.getSession(function (session) {
           try {
             finish(session && (session.userName || session.username || (session.credentials && session.credentials.userName) || (session.credentials && session.credentials.username)));
-          } catch (e) { finish(""); }
+          } catch (e3) { finish(""); }
         }, function () { finish(""); });
         setTimeout(function () { finish(""); }, 2500);
         return;
       }
-    } catch (e) {}
-
-    try {
-      if (api && api.credentials) {
-        finish(api.credentials.userName || api.credentials.username || api.credentials.user);
-        return;
-      }
-    } catch (e2) {}
+    } catch (e4) {}
 
     finish("");
   }
 
   function detectLanguageFromUserProfile(api, state, callback) {
-    detectLanguage(state);
+    currentLanguage = "en";
 
-    tryGetSessionUserName(api, function (userName) {
+    tryGetSessionUserName(api, state, function (userName) {
       if (!api || !userName || typeof api.call !== "function") { callback(); return; }
 
       try {
@@ -175,14 +152,18 @@
           "Get",
           { typeName: "User", search: { name: userName }, resultsLimit: 1 },
           function (users) {
-            var candidates = [];
-            if (users && users.length) collectLanguageCandidates(users[0], candidates, 0);
-            setLanguageFromCandidates(candidates, false);
+            var profileLanguage = null;
+            try {
+              if (users && users.length) {
+                profileLanguage = users[0].language || users[0].Language;
+              }
+            } catch (e1) {}
+            currentLanguage = languageFromValue(profileLanguage) || "en";
             callback();
           },
-          function () { callback(); }
+          function () { currentLanguage = "en"; callback(); }
         );
-      } catch (e) { callback(); }
+      } catch (e2) { currentLanguage = "en"; callback(); }
     });
   }
 
