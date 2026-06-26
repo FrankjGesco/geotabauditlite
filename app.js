@@ -14,7 +14,7 @@
   var exportRows = [];
   var showPlanMode = "fix";
   var refreshTimer = null;
-  var currentLanguage = "it";
+  var currentLanguage = "en";
   var lastApi = null;
 
   var I18N = {
@@ -105,65 +105,111 @@
     return null;
   }
 
+  function pickUserNameFromSession(session) {
+    try {
+      if (!session) return "";
+      if (session.userName) return session.userName;
+      if (session.username) return session.username;
+      if (session.name) return session.name;
+      if (session.credentials) {
+        return session.credentials.userName || session.credentials.username || session.credentials.user || "";
+      }
+      if (session.loginResult && session.loginResult.credentials) {
+        return session.loginResult.credentials.userName || session.loginResult.credentials.username || "";
+      }
+    } catch (e) {}
+    return "";
+  }
+
   function tryGetSessionUserName(api, state, callback) {
     var done = false;
     function finish(name) { if (!done) { done = true; callback(name || ""); } }
 
     try {
-      if (api && api.userName) { finish(api.userName); return; }
+      if (api) {
+        if (api.userName) { finish(api.userName); return; }
+        if (api.username) { finish(api.username); return; }
+        if (api.user && api.user.name) { finish(api.user.name); return; }
+        if (api.credentials) {
+          var credentialName = api.credentials.userName || api.credentials.username || api.credentials.user || api.credentials.databaseUser;
+          if (credentialName) { finish(credentialName); return; }
+        }
+      }
     } catch (e0) {}
 
     try {
-      if (state && state.userName) { finish(state.userName); return; }
-      if (state && state.user && state.user.name) { finish(state.user.name); return; }
-      if (state && state.currentUser && state.currentUser.name) { finish(state.currentUser.name); return; }
+      if (state) {
+        if (state.userName) { finish(state.userName); return; }
+        if (state.username) { finish(state.username); return; }
+        if (state.user && state.user.name) { finish(state.user.name); return; }
+        if (state.currentUser && state.currentUser.name) { finish(state.currentUser.name); return; }
+        if (state.credentials) {
+          var stateCredentialName = state.credentials.userName || state.credentials.username || state.credentials.user;
+          if (stateCredentialName) { finish(stateCredentialName); return; }
+        }
+      }
     } catch (e1) {}
 
     try {
-      if (api && api.credentials) {
-        finish(api.credentials.userName || api.credentials.username || api.credentials.user || api.credentials.databaseUser);
+      if (api && typeof api.getSession === "function") {
+        var maybeSession = api.getSession(
+          function (session) { finish(pickUserNameFromSession(session)); },
+          function () { finish(""); }
+        );
+
+        if (maybeSession && typeof maybeSession.then === "function") {
+          maybeSession.then(function (session) {
+            finish(pickUserNameFromSession(session));
+          }).catch(function () { finish(""); });
+        } else if (maybeSession && typeof maybeSession === "object") {
+          var nameFromReturn = pickUserNameFromSession(maybeSession);
+          if (nameFromReturn) { finish(nameFromReturn); return; }
+        }
+
+        setTimeout(function () { finish(""); }, 2500);
         return;
       }
     } catch (e2) {}
 
-    try {
-      if (api && typeof api.getSession === "function") {
-        api.getSession(function (session) {
-          try {
-            finish(session && (session.userName || session.username || (session.credentials && session.credentials.userName) || (session.credentials && session.credentials.username)));
-          } catch (e3) { finish(""); }
-        }, function () { finish(""); });
-        setTimeout(function () { finish(""); }, 2500);
-        return;
-      }
-    } catch (e4) {}
-
     finish("");
+  }
+
+  function readUserLanguage(api, userName, callback) {
+    if (!api || !userName || typeof api.call !== "function") { callback(null); return; }
+
+    try {
+      api.call(
+        "Get",
+        { typeName: "User", search: { name: userName }, resultsLimit: 1 },
+        function (users) {
+          var profileLanguage = null;
+          try {
+            if (users && users.length) {
+              profileLanguage = users[0].language || users[0].Language;
+            }
+          } catch (e1) {}
+          callback(profileLanguage || null);
+        },
+        function () { callback(null); }
+      );
+    } catch (e2) { callback(null); }
   }
 
   function detectLanguageFromUserProfile(api, state, callback) {
     currentLanguage = "en";
 
     tryGetSessionUserName(api, state, function (userName) {
-      if (!api || !userName || typeof api.call !== "function") { callback(); return; }
-
-      try {
-        api.call(
-          "Get",
-          { typeName: "User", search: { name: userName }, resultsLimit: 1 },
-          function (users) {
-            var profileLanguage = null;
-            try {
-              if (users && users.length) {
-                profileLanguage = users[0].language || users[0].Language;
-              }
-            } catch (e1) {}
-            currentLanguage = languageFromValue(profileLanguage) || "en";
-            callback();
-          },
-          function () { currentLanguage = "en"; callback(); }
-        );
-      } catch (e2) { currentLanguage = "en"; callback(); }
+      readUserLanguage(api, userName, function (profileLanguage) {
+        currentLanguage = languageFromValue(profileLanguage) || "en";
+        try {
+          console.info("Vodafone Automotive Quality Audit language", {
+            userName: userName || null,
+            profileLanguage: profileLanguage || null,
+            addinLanguage: currentLanguage
+          });
+        } catch (e) {}
+        callback();
+      });
     });
   }
 
