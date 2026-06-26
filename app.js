@@ -100,35 +100,90 @@
   function languageFromValue(value) {
     if (!value) return null;
     var v = String(value).toLowerCase();
-    if (v.indexOf("ital") !== -1 || v === "it" || v.indexOf("it-") === 0 || v.indexOf("it_") === 0) return "it";
-    if (v.indexOf("engl") !== -1 || v === "en" || v.indexOf("en-") === 0 || v.indexOf("en_") === 0) return "en";
+    if (v.indexOf("ital") !== -1 || v === "it" || v.indexOf("it-") === 0 || v.indexOf("it_") === 0 || v.indexOf("it_") === 0) return "it";
+    if (v.indexOf("engl") !== -1 || v === "en" || v.indexOf("en-") === 0 || v.indexOf("en_") === 0 || v.indexOf("en_") === 0) return "en";
+    if (v.indexOf("fran") !== -1 || v === "fr" || v.indexOf("fr-") === 0 || v.indexOf("fr_") === 0) return "fr";
+    if (v.indexOf("span") !== -1 || v.indexOf("espa") !== -1 || v === "es" || v.indexOf("es-") === 0 || v.indexOf("es_") === 0) return "es";
+    if (v.indexOf("germ") !== -1 || v.indexOf("deut") !== -1 || v === "de" || v.indexOf("de-") === 0 || v.indexOf("de_") === 0) return "de";
     return null;
+  }
+
+  function collectLanguageCandidates(obj, candidates, depth) {
+    if (!obj || depth > 5) return;
+    try {
+      if (typeof obj === "string") { candidates.push(obj); return; }
+      ["language", "lang", "culture", "userCulture", "locale", "uiCulture", "displayLanguage", "preferredLanguage", "languageCode", "languageId"].forEach(function (k) {
+        if (obj[k] !== undefined && obj[k] !== null) candidates.push(obj[k]);
+      });
+      ["user", "currentUser", "session", "profile", "database", "options", "settings", "preferences", "entity"].forEach(function (k) {
+        if (obj[k]) collectLanguageCandidates(obj[k], candidates, depth + 1);
+      });
+    } catch (e) {}
+  }
+
+  function setLanguageFromCandidates(candidates, allowBrowserFallback) {
+    for (var i = 0; i < candidates.length; i++) {
+      var found = languageFromValue(candidates[i]);
+      if (found) { currentLanguage = found; return true; }
+    }
+    if (allowBrowserFallback) {
+      currentLanguage = languageFromValue(navigator.language) || languageFromValue(navigator.userLanguage) || "en";
+    }
+    return false;
   }
 
   function detectLanguage(state) {
     var candidates = [];
+    collectLanguageCandidates(state, candidates, 0);
+    setLanguageFromCandidates(candidates, true);
+  }
 
-    function add(value) {
-      if (value !== undefined && value !== null) candidates.push(value);
-    }
+  function tryGetSessionUserName(api, callback) {
+    var done = false;
+    function finish(name) { if (!done) { done = true; callback(name || ""); } }
 
-    function scan(obj, depth) {
-      if (!obj || depth > 3) return;
+    try {
+      if (api && typeof api.getSession === "function") {
+        api.getSession(function (session) {
+          try {
+            finish(session && (session.userName || session.username || (session.credentials && session.credentials.userName) || (session.credentials && session.credentials.username)));
+          } catch (e) { finish(""); }
+        }, function () { finish(""); });
+        setTimeout(function () { finish(""); }, 2500);
+        return;
+      }
+    } catch (e) {}
+
+    try {
+      if (api && api.credentials) {
+        finish(api.credentials.userName || api.credentials.username || api.credentials.user);
+        return;
+      }
+    } catch (e2) {}
+
+    finish("");
+  }
+
+  function detectLanguageFromUserProfile(api, state, callback) {
+    detectLanguage(state);
+
+    tryGetSessionUserName(api, function (userName) {
+      if (!api || !userName || typeof api.call !== "function") { callback(); return; }
+
       try {
-        ["language", "lang", "culture", "userCulture", "locale", "uiCulture", "displayLanguage", "preferredLanguage"].forEach(function (k) { add(obj[k]); });
-        ["user", "currentUser", "session", "profile", "database", "options"].forEach(function (k) { if (obj[k]) scan(obj[k], depth + 1); });
-      } catch (e) {}
-    }
-
-    scan(state, 0);
-
-    // Prefer MyGeotab/profile values. Use browser language only as fallback.
-    for (var i = 0; i < candidates.length; i++) {
-      var found = languageFromValue(candidates[i]);
-      if (found) { currentLanguage = found; return; }
-    }
-
-    currentLanguage = languageFromValue(navigator.language) || languageFromValue(navigator.userLanguage) || "en";
+        api.call(
+          "Get",
+          { typeName: "User", search: { name: userName }, resultsLimit: 1 },
+          function (users) {
+            var candidates = [];
+            if (users && users.length) collectLanguageCandidates(users[0], candidates, 0);
+            setLanguageFromCandidates(candidates, false);
+            callback();
+          },
+          function () { callback(); }
+        );
+      } catch (e) { callback(); }
+    });
   }
 
   function byId(id) { return document.getElementById(id); }
@@ -1156,18 +1211,20 @@
       return {
         initialize: function (api, state, callback) {
           pageState = state;
-          detectLanguage(state);
-          applyTranslations();
-          wireUi(api);
-          scheduleAutoRefresh(api);
-          runAudit(api);
-          if (callback) callback();
+          detectLanguageFromUserProfile(api, state, function () {
+            applyTranslations();
+            wireUi(api);
+            scheduleAutoRefresh(api);
+            runAudit(api);
+            if (callback) callback();
+          });
         },
         focus: function (api, state) {
           pageState = state;
-          detectLanguage(state);
-          applyTranslations();
-          runAudit(api);
+          detectLanguageFromUserProfile(api, state, function () {
+            applyTranslations();
+            runAudit(api);
+          });
         },
         blur: function () {}
       };
