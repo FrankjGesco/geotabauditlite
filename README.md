@@ -80,7 +80,7 @@ Il report esporta solo il piano correzione, con colonne:
   - `Ultimo dato troppo vecchio`
 
 
-## Aggiornamento v1.1.0
+## Aggiornamento v1.1.1
 
 - Il controllo parte automaticamente all’apertura dell’add-in e si aggiorna anche al ritorno sul tab MyGeotab.
 - Aggiunto aggiornamento manuale opzionale con pulsante “Aggiorna ora”.
