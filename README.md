@@ -1,4 +1,4 @@
-# Geotab Data Quality Audit v1.1.2
+# Vodafone Automotive Quality Audit v1.1.4
 
 Versione focalizzata sul prodotto vendibile: controllo qualità della banca dati MyGeotab.
 
@@ -80,13 +80,23 @@ Il report esporta solo il piano correzione, con colonne:
   - `Ultimo dato troppo vecchio`
 
 
-## Aggiornamento v1.1.2
+## Aggiornamento v1.1.3
 
 - Il controllo parte automaticamente all’apertura dell’add-in e si aggiorna anche al ritorno sul tab MyGeotab.
 - Aggiunto aggiornamento manuale opzionale con pulsante “Aggiorna ora”.
 - Separati gli asset attivi senza DeviceStatusInfo dal piano correzione.
 - Gli asset senza DeviceStatusInfo non generano anomalie anagrafiche e non entrano nel filtro “Piano correzione” o “Anagrafica”.
 - Gli asset con DeviceStatusInfo vengono analizzati sempre in anagrafica; se non comunicano entrano anche nei problemi comunicazione.
-- Aggiunta scheda dedicata “Non attivi”.
+- Aggiunta scheda dedicata “Non installati”.
 - Aggiunta traduzione automatica IT/EN in base alla lingua rilevata dal profilo/ambiente.
 - Corretto export CSV: mantiene la virgola come separatore, ma rimuove virgole interne dai valori per non creare colonne extra in Excel/Text-to-columns.
+
+
+## Correzione v1.1.4
+
+- Titolo aggiornato a Vodafone Automotive Quality Audit.
+- Rimossa etichetta MyGeotab Add-In dall'header.
+- Tab e task allineati su Non installati.
+- La comunicazione controlla solo `isDeviceCommunicating = false`; rimosso il controllo ultimo dato oltre 3 giorni.
+- Footer aggiornato: Add-in in sola lettura. Usa l’utente già loggato. Non salva credenziali e non usa backend.
+- Migliorato rilevamento lingua da profilo/state MyGeotab con fallback al browser.

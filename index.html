@@ -3,20 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Geotab Data Quality Audit</title>
+  <title>Vodafone Automotive Quality Audit</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div>
-        <div class="eyebrow">MyGeotab Add-In</div>
-        <h1 id="appTitle">Geotab Data Quality Audit</h1>
+        <h1 id="appTitle">Vodafone Automotive Quality Audit</h1>
         <p id="subtitle" class="subtitle">
-          Controllo qualità della banca dati MyGeotab: asset da correggere, dati mancanti, gruppi operativi, comunicazione dispositivi e asset senza DeviceStatusInfo.
+          Controllo qualità della banca dati: asset da correggere, dati mancanti, gruppi operativi, comunicazione dispositivi e asset senza DeviceStatusInfo.
         </p>
       </div>
-      <div class="version">v1.1.2</div>
+      <div class="version">v1.1.4</div>
     </header>
 
     <section id="localWarning" class="notice warning hidden">
@@ -78,11 +77,11 @@
       <article class="summary-card comm-card">
         <div id="communicationLabel" class="summary-label">Problemi comunicazione</div>
         <div id="communicationIssueCount" class="summary-number">-</div>
-        <div id="communicationHelpText" class="summary-help">Non comunicanti / dati vecchi</div>
+        <div id="communicationHelpText" class="summary-help">Non comunicanti</div>
       </article>
 
       <article class="summary-card inactive-card">
-        <div id="inactiveLabel" class="summary-label">Senza DeviceStatusInfo</div>
+        <div id="inactiveLabel" class="summary-label">Dispositivi non installati</div>
         <div id="inactiveDeviceCount" class="summary-number">-</div>
         <div id="inactiveHelpText" class="summary-help">Stato dispositivo non disponibile</div>
       </article>
@@ -110,7 +109,7 @@
       <button id="tabPlanBtn" class="tab active" data-tab="plan">Piano correzione</button>
       <button id="tabDataBtn" class="tab" data-tab="data">Anagrafica</button>
       <button id="tabCommunicationBtn" class="tab" data-tab="communication">Comunicazione</button>
-      <button id="tabInactiveBtn" class="tab" data-tab="inactive">Non attivi</button>
+      <button id="tabInactiveBtn" class="tab" data-tab="inactive">Non installati</button>
       <button id="tabCleanBtn" class="tab" data-tab="clean">Asset puliti</button>
     </section>
 
@@ -181,7 +180,7 @@
         <div class="panel-header">
           <div>
             <h2 id="commTitle">Asset attivi con problemi di comunicazione</h2>
-            <p id="commText">Dispositivi attivi non comunicanti, senza stato o con ultimo dato più vecchio della soglia.</p>
+            <p id="commText">Dispositivi attivi con DeviceStatusInfo ma non comunicanti.</p>
           </div>
         </div>
 
@@ -210,7 +209,7 @@
       <div class="panel">
         <div class="panel-header">
           <div>
-            <h2 id="inactiveTitle">Senza DeviceStatusInfo / non installati</h2>
+            <h2 id="inactiveTitle">Dispositivi non installati</h2>
             <p id="inactiveText">Elenco separato: questi asset attivi non hanno DeviceStatusInfo e non generano anomalie anagrafiche nel piano correzione.</p>
           </div>
         </div>
@@ -265,7 +264,7 @@
     </section>
 
     <footer id="footerText" class="footer">
-      Add-in in sola lettura. Usa l’utente già loggato in MyGeotab. Non salva credenziali e non usa backend.
+      Add-in in sola lettura. Usa l’utente già loggato. Non salva credenziali e non usa backend.
     </footer>
   </div>
 

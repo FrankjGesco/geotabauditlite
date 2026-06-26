@@ -13,15 +13,14 @@
   var inactiveRows = [];
   var exportRows = [];
   var showPlanMode = "fix";
-  var OLD_DATA_DAYS = 3;
   var refreshTimer = null;
   var currentLanguage = "it";
   var lastApi = null;
 
   var I18N = {
     it: {
-      appTitle: "Geotab Data Quality Audit",
-      subtitle: "Controllo qualità della banca dati MyGeotab: asset da correggere, dati mancanti, gruppi operativi, comunicazione dispositivi e dispositivi non attivi.",
+      appTitle: "Vodafone Automotive Quality Audit",
+      subtitle: "Controllo qualità della banca dati: asset da correggere, dati mancanti, gruppi operativi, comunicazione dispositivi e dispositivi non installati.",
       localWarning: "Questa pagina è aperta fuori da MyGeotab. Per leggere i dati reali deve essere caricata come Add-In dentro MyGeotab.",
       refreshNow: "Aggiorna ora",
       exportFormat: "Formato export",
@@ -42,9 +41,9 @@
       missingGroup: "Senza gruppo operativo",
       missingGroupHelp: "Esclusi gruppi integrati",
       communicationIssues: "Problemi comunicazione",
-      communicationHelp: "Non comunicanti / dati vecchi",
-      inactiveDevices: "Senza DeviceStatusInfo",
-      inactiveHelp: "Stato dispositivo non disponibile",
+      communicationHelp: "Non comunicanti",
+      inactiveDevices: "Non installati",
+      inactiveHelp: "Senza DeviceStatusInfo",
       cleanAssets: "Asset puliti",
       cleanHelp: "Nessun problema base",
       prioritiesTitle: "Priorità operative",
@@ -53,42 +52,42 @@
       tabPlan: "Piano correzione",
       tabData: "Anagrafica",
       tabCommunication: "Comunicazione",
-      tabInactive: "Non attivi",
+      tabInactive: "Non installati",
       tabClean: "Asset puliti",
       planTitle: "Piano correzione asset",
-      planText: "Solo asset attivi. I dispositivi non installati o non attivi sono esclusi dal piano correzione e dall’anagrafica.",
+      planText: "Solo asset con DeviceStatusInfo. I dispositivi non installati sono esclusi dal piano correzione e dall’anagrafica.",
       onlyFix: "Solo da correggere",
       allAssets: "Tutti gli asset attivi",
       dataTitle: "Asset attivi con dati anagrafici mancanti",
-      dataText: "VIN, seriale dispositivo, targa e gruppi operativi. I dispositivi non attivi sono esclusi.",
+      dataText: "VIN, seriale dispositivo, targa e gruppi operativi. I dispositivi non installati sono esclusi.",
       commTitle: "Asset attivi con problemi di comunicazione",
-      commText: "Dispositivi attivi non comunicanti, senza stato o con ultimo dato più vecchio della soglia.",
-      inactiveTitle: "Senza DeviceStatusInfo",
-      inactiveText: "Elenco separato: questi asset attivi non hanno DeviceStatusInfo e non generano anomalie anagrafiche nel piano correzione.",
+      commText: "Dispositivi attivi con DeviceStatusInfo ma non comunicanti.",
+      inactiveTitle: "Dispositivi non installati",
+      inactiveText: "Elenco separato: questi asset non hanno DeviceStatusInfo e sono considerati non installati ai fini dell’audit.",
       cleanTitle: "Asset attivi senza problemi base rilevati",
       cleanText: "Asset attivi con anagrafica minima completa, gruppo operativo e comunicazione regolare.",
       thAsset: "Asset", thStatus: "Stato", thMissing: "Dati mancanti", thCommunication: "Comunicazione", thEvidence: "Evidenza", thAction: "Azione consigliata", thOpen: "Apri", thPriority: "Priorità", thProblem: "Problema", thLastData: "Ultimo dato", thSerial: "Seriale", thVin: "VIN", thGroups: "Gruppi operativi", thReason: "Motivo",
       openAsset: "Apri asset", notAvailable: "N/D", unavailable: "Non disponibile", ok: "OK", complete: "Completa", critical: "Critica", medium: "Media", registry: "Anagrafica", communication: "Comunicazione",
-      noRows: "Nessun asset da mostrare.", noDataRows: "Nessun dato anagrafico mancante sugli asset attivi.", noCommRows: "Nessun problema di comunicazione rilevato sugli asset attivi.", noInactiveRows: "Nessun asset senza DeviceStatusInfo rilevato.", noCleanRows: "Nessun asset pulito da mostrare con i filtri attuali.",
+      noRows: "Nessun asset da mostrare.", noDataRows: "Nessun dato anagrafico mancante sugli asset attivi.", noCommRows: "Nessun problema di comunicazione rilevato sugli asset attivi.", noInactiveRows: "Nessun dispositivo non installato rilevato.", noCleanRows: "Nessun asset pulito da mostrare con i filtri attuali.",
       missingSerial: "Seriale dispositivo mancante", missingVin: "VIN mancante", missingPlate: "Targa mancante", noOpsGroup: "Nessun gruppo operativo", statusMissing: "Stato dispositivo non disponibile", notCommunicating: "Dispositivo non comunicante", oldData: "Ultimo dato troppo vecchio", notInstalled: "Dispositivo non installato", inactivePeriod: "Dispositivo fuori periodo di attività",
       serialEmpty: "serialNumber vuoto", vinEmpty: "vehicleIdentificationNumber vuoto", plateEmpty: "targa/licencePlate vuota", opsEmpty: "gruppi operativi = 0 dopo esclusione gruppi integrati", noStatusEvidence: "Nessun DeviceStatusInfo trovato per questo dispositivo attivo.", oldThreshold: "Soglia", daysAgo: "giorni fa", oldDataLabel: "Dato vecchio",
-      fixMissing: "Completare dati mancanti", fixMissingText: "campi da correggere su", assignGroups: "Assegnare gruppi operativi", assignGroupsText: "Asset attivi senza gruppo operativo dopo esclusione dei gruppi integrati Geotab.", cleanRegistry: "Pulire anagrafica tecnica", cleanRegistryText: "Seriali e VIN mancanti possono compromettere manutenzione, riconciliazione e integrazioni.", verifyCommunication: "Verificare comunicazione", verifyCommunicationText: "Asset attivi senza stato, non comunicanti o con ultimo dato troppo vecchio.", reviewInactive: "Verificare asset senza DeviceStatusInfo", reviewInactiveText: "Asset attivi senza DeviceStatusInfo, separati dal piano correzione.",
-      actionComplete: "Apri l’asset e completa i campi mancanti indicati.", actionComm: "Verificare installazione, alimentazione, copertura rete e stato del dispositivo.", noAction: "Nessuna azione richiesta nei controlli base.", noBaseProblem: "Nessun problema base rilevato.", noExport: "Nessun dato da esportare. Verifica che ci siano asset attivi da correggere.", popupBlocked: "Popup bloccato dal browser. Consenti i popup per esportare in PDF.", footer: "Add-in in sola lettura. Usa l’utente già loggato in MyGeotab. Non salva credenziali e non usa backend.",
+      fixMissing: "Completare dati mancanti", fixMissingText: "campi da correggere su", assignGroups: "Assegnare gruppi operativi", assignGroupsText: "Asset attivi senza gruppo operativo dopo esclusione dei gruppi integrati Geotab.", cleanRegistry: "Pulire anagrafica tecnica", cleanRegistryText: "Seriali e VIN mancanti possono compromettere manutenzione, riconciliazione e integrazioni.", verifyCommunication: "Verificare comunicazione", verifyCommunicationText: "Asset attivi con DeviceStatusInfo ma non comunicanti.", reviewInactive: "Verificare dispositivi non installati", reviewInactiveText: "Asset senza DeviceStatusInfo, separati dal piano correzione.",
+      actionComplete: "Apri l’asset e completa i campi mancanti indicati.", actionComm: "Verificare installazione, alimentazione, copertura rete e stato del dispositivo.", noAction: "Nessuna azione richiesta nei controlli base.", noBaseProblem: "Nessun problema base rilevato.", noExport: "Nessun dato da esportare. Verifica che ci siano asset attivi da correggere.", popupBlocked: "Popup bloccato dal browser. Consenti i popup per esportare in PDF.", footer: "Add-in in sola lettura. Usa l’utente già loggato. Non salva credenziali e non usa backend.",
       exportGenerated: "Export PDF generato il", printPdf: "Stampa / Salva PDF",
       colCategory: "Categoria", colPriority: "Priorità", colAsset: "Asset", colProblem: "Problema", colEvidence: "Evidenza", colAction: "Azione consigliata", colDeviceId: "Device ID", colSerial: "Seriale dispositivo", colPlate: "Targa", colOps: "Gruppi operativi", colLast: "Ultimo dato"
     },
     en: {
-      appTitle: "Geotab Data Quality Audit",
-      subtitle: "MyGeotab database quality check: assets to fix, missing data, operational groups, device communication and inactive devices.",
+      appTitle: "Vodafone Automotive Quality Audit",
+      subtitle: "Database quality check: assets to fix, missing data, operational groups, device communication and not installed devices.",
       localWarning: "This page is open outside MyGeotab. To read real data it must be loaded as an Add-In inside MyGeotab.",
       refreshNow: "Refresh now", exportFormat: "Export format", exportPlan: "Export fix plan", searchAsset: "Search assets", searchPlaceholder: "asset name, VIN, serial...", searchHelp: "filters tables", ready: "Ready. The audit runs automatically when opened.", loading: "Refreshing: reading Device and DeviceStatusInfo...", done: "Audit updated.", error: "Error during audit. Open the browser console for details.",
-      assetAnalysed: "Active assets analysed", activeDevices: "Active devices", assetsToFix: "Assets to fix", withProblems: "With at least one issue", missingData: "Missing data", missingDataHelp: "VIN, serial, plate, groups", missingGroup: "Without operational group", missingGroupHelp: "Built-in groups excluded", communicationIssues: "Communication issues", communicationHelp: "Not communicating / old data", inactiveDevices: "Without DeviceStatusInfo", inactiveHelp: "Device status unavailable", cleanAssets: "Clean assets", cleanHelp: "No basic issue",
-      prioritiesTitle: "Operational priorities", prioritiesText: "Customer view: what to fix first to make MyGeotab reports, rules and dashboards reliable.", emptyPriorities: "No priority detected in the basic checks.", tabPlan: "Fix plan", tabData: "Registry", tabCommunication: "Communication", tabInactive: "Inactive", tabClean: "Clean assets", planTitle: "Asset fix plan", planText: "Active assets only. Not installed or inactive devices are excluded from the fix plan and registry checks.", onlyFix: "Only to fix", allAssets: "All active assets", dataTitle: "Active assets with missing registry data", dataText: "VIN, device serial, plate and operational groups. Inactive devices are excluded.", commTitle: "Active assets with communication issues", commText: "Active devices not communicating, without status or with last data older than the threshold.", inactiveTitle: "Without DeviceStatusInfo", inactiveText: "Separate list: these active assets have no DeviceStatusInfo and do not generate registry anomalies in the fix plan.", cleanTitle: "Active assets with no basic issue", cleanText: "Active assets with minimum registry data, operational group and regular communication.",
+      assetAnalysed: "Active assets analysed", activeDevices: "Active devices", assetsToFix: "Assets to fix", withProblems: "With at least one issue", missingData: "Missing data", missingDataHelp: "VIN, serial, plate, groups", missingGroup: "Without operational group", missingGroupHelp: "Built-in groups excluded", communicationIssues: "Communication issues", communicationHelp: "Not communicating", inactiveDevices: "Not installed", inactiveHelp: "Device status unavailable", cleanAssets: "Clean assets", cleanHelp: "No basic issue",
+      prioritiesTitle: "Operational priorities", prioritiesText: "Customer view: what to fix first to make MyGeotab reports, rules and dashboards reliable.", emptyPriorities: "No priority detected in the basic checks.", tabPlan: "Fix plan", tabData: "Registry", tabCommunication: "Communication", tabInactive: "Not installed", tabClean: "Clean assets", planTitle: "Asset fix plan", planText: "Assets with DeviceStatusInfo only. Not installed devices are excluded from the fix plan and registry checks.", onlyFix: "Only to fix", allAssets: "All active assets", dataTitle: "Active assets with missing registry data", dataText: "VIN, device serial, plate and operational groups. Not installed devices are excluded.", commTitle: "Active assets with communication issues", commText: "Active devices with DeviceStatusInfo but not communicating.", inactiveTitle: "Not installed devices", inactiveText: "Separate list: these assets have no DeviceStatusInfo and are considered not installed for audit purposes.", cleanTitle: "Active assets with no basic issue", cleanText: "Active assets with minimum registry data, operational group and regular communication.",
       thAsset: "Asset", thStatus: "Status", thMissing: "Missing data", thCommunication: "Communication", thEvidence: "Evidence", thAction: "Recommended action", thOpen: "Open", thPriority: "Priority", thProblem: "Issue", thLastData: "Last data", thSerial: "Serial", thVin: "VIN", thGroups: "Operational groups", thReason: "Reason",
-      openAsset: "Open asset", notAvailable: "N/A", unavailable: "Unavailable", ok: "OK", complete: "Complete", critical: "Critical", medium: "Medium", registry: "Registry", communication: "Communication", noRows: "No asset to display.", noDataRows: "No missing registry data on active assets.", noCommRows: "No communication issue detected on active assets.", noInactiveRows: "No asset without DeviceStatusInfo detected.", noCleanRows: "No clean asset to display with current filters.",
+      openAsset: "Open asset", notAvailable: "N/A", unavailable: "Unavailable", ok: "OK", complete: "Complete", critical: "Critical", medium: "Medium", registry: "Registry", communication: "Communication", noRows: "No asset to display.", noDataRows: "No missing registry data on active assets.", noCommRows: "No communication issue detected on active assets.", noInactiveRows: "No not installed device detected.", noCleanRows: "No clean asset to display with current filters.",
       missingSerial: "Missing device serial", missingVin: "Missing VIN", missingPlate: "Missing plate", noOpsGroup: "No operational group", statusMissing: "Device status unavailable", notCommunicating: "Device not communicating", oldData: "Last data too old", notInstalled: "Device not installed", inactivePeriod: "Device outside active period", serialEmpty: "serialNumber empty", vinEmpty: "vehicleIdentificationNumber empty", plateEmpty: "plate/licencePlate empty", opsEmpty: "operational groups = 0 after excluding built-in groups", noStatusEvidence: "No DeviceStatusInfo found for this active device.", oldThreshold: "Threshold", daysAgo: "days ago", oldDataLabel: "Old data",
-      fixMissing: "Complete missing data", fixMissingText: "fields to fix on", assignGroups: "Assign operational groups", assignGroupsText: "Active assets without operational group after excluding Geotab built-in groups.", cleanRegistry: "Clean technical registry", cleanRegistryText: "Missing serials and VINs may impact maintenance, reconciliation and integrations.", verifyCommunication: "Check communication", verifyCommunicationText: "Active assets without status, not communicating or with old last data.", reviewInactive: "Check assets without DeviceStatusInfo", reviewInactiveText: "Active assets without DeviceStatusInfo, separated from the fix plan.",
-      actionComplete: "Open the asset and complete the listed missing fields.", actionComm: "Check installation, power, network coverage and device status.", noAction: "No action required for the basic checks.", noBaseProblem: "No basic issue detected.", noExport: "No data to export. Check if there are active assets to fix.", popupBlocked: "Popup blocked by the browser. Allow popups to export to PDF.", footer: "Read-only add-in. Uses the user already logged in to MyGeotab. It does not store credentials and does not use a backend.", exportGenerated: "PDF export generated on", printPdf: "Print / Save PDF",
+      fixMissing: "Complete missing data", fixMissingText: "fields to fix on", assignGroups: "Assign operational groups", assignGroupsText: "Active assets without operational group after excluding Geotab built-in groups.", cleanRegistry: "Clean technical registry", cleanRegistryText: "Missing serials and VINs may impact maintenance, reconciliation and integrations.", verifyCommunication: "Check communication", verifyCommunicationText: "Active assets with DeviceStatusInfo but not communicating.", reviewInactive: "Check not installed devices", reviewInactiveText: "Assets without DeviceStatusInfo, separated from the fix plan.",
+      actionComplete: "Open the asset and complete the listed missing fields.", actionComm: "Check installation, power, network coverage and device status.", noAction: "No action required for the basic checks.", noBaseProblem: "No basic issue detected.", noExport: "No data to export. Check if there are active assets to fix.", popupBlocked: "Popup blocked by the browser. Allow popups to export to PDF.", footer: "Read-only add-in. Uses the user already logged in. It does not store credentials and does not use a backend.", exportGenerated: "PDF export generated on", printPdf: "Print / Save PDF",
       colCategory: "Category", colPriority: "Priority", colAsset: "Asset", colProblem: "Issue", colEvidence: "Evidence", colAction: "Recommended action", colDeviceId: "Device ID", colSerial: "Device serial", colPlate: "Plate", colOps: "Operational groups", colLast: "Last data"
     }
   };
@@ -98,18 +97,38 @@
     return (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
   }
 
+  function languageFromValue(value) {
+    if (!value) return null;
+    var v = String(value).toLowerCase();
+    if (v.indexOf("ital") !== -1 || v === "it" || v.indexOf("it-") === 0 || v.indexOf("it_") === 0) return "it";
+    if (v.indexOf("engl") !== -1 || v === "en" || v.indexOf("en-") === 0 || v.indexOf("en_") === 0) return "en";
+    return null;
+  }
+
   function detectLanguage(state) {
     var candidates = [];
-    try {
-      if (state) {
-        candidates.push(state.language, state.culture, state.userCulture, state.locale);
-        if (state.user) candidates.push(state.user.language, state.user.culture, state.userCulture);
-        if (state.currentUser) candidates.push(state.currentUser.language, state.currentUser.culture);
-      }
-    } catch (e) {}
-    candidates.push(navigator.language, navigator.userLanguage);
-    var raw = candidates.filter(Boolean).join(" ").toLowerCase();
-    currentLanguage = raw.indexOf("it") !== -1 ? "it" : "en";
+
+    function add(value) {
+      if (value !== undefined && value !== null) candidates.push(value);
+    }
+
+    function scan(obj, depth) {
+      if (!obj || depth > 3) return;
+      try {
+        ["language", "lang", "culture", "userCulture", "locale", "uiCulture", "displayLanguage", "preferredLanguage"].forEach(function (k) { add(obj[k]); });
+        ["user", "currentUser", "session", "profile", "database", "options"].forEach(function (k) { if (obj[k]) scan(obj[k], depth + 1); });
+      } catch (e) {}
+    }
+
+    scan(state, 0);
+
+    // Prefer MyGeotab/profile values. Use browser language only as fallback.
+    for (var i = 0; i < candidates.length; i++) {
+      var found = languageFromValue(candidates[i]);
+      if (found) { currentLanguage = found; return; }
+    }
+
+    currentLanguage = languageFromValue(navigator.language) || languageFromValue(navigator.userLanguage) || "en";
   }
 
   function byId(id) { return document.getElementById(id); }
@@ -326,7 +345,6 @@
   }
 
   function analyse(allDevices, statuses) {
-    var offlineDays = OLD_DATA_DAYS;
     var activeDevices = allDevices.filter(isActiveDevice);
     var checkLicence = hasLicenceField(activeDevices);
 
@@ -343,7 +361,7 @@
       // Regola prodotto:
       // - device con DeviceStatusInfo: controlliamo anagrafica;
       // - device con DeviceStatusInfo e non comunicante: anagrafica + problema comunicazione;
-      // - device senza DeviceStatusInfo: task separato "non attivi", fuori da piano correzione/anagrafica.
+      // - device senza DeviceStatusInfo: task separato "non installati", fuori da piano correzione/anagrafica.
       if (!status) {
         inactiveRows.push(buildInactiveRow(device, t("statusMissing")));
         return;
@@ -392,10 +410,6 @@
         communicationProblem = t("notCommunicating");
         communicationPriority = t("critical");
         communicationEvidence = "isDeviceCommunicating = false. " + t("thLastData") + ": " + lastDataText + (oldDays !== null ? " (" + oldDays + " " + t("daysAgo") + ")." : ".");
-      } else if (oldDays !== null && oldDays >= offlineDays) {
-        communicationProblem = t("oldData");
-        communicationPriority = t("critical");
-        communicationEvidence = t("thLastData") + ": " + lastDataText + " (" + oldDays + " " + t("daysAgo") + "). " + t("oldThreshold") + ": " + offlineDays + " giorni.";
       }
 
       var needsFix = missing.length > 0 || communicationProblem !== "";
@@ -883,7 +897,7 @@
     var header = getExportColumns();
     var rows = getExportRows();
 
-    var html = '<!doctype html><html><head><meta charset="utf-8"><title>Geotab Data Quality Audit</title>' +
+    var html = '<!doctype html><html><head><meta charset="utf-8"><title>Vodafone Automotive Quality Audit</title>' +
       '<style>body{font-family:Arial,sans-serif;margin:24px;color:#172033}h1{margin:0 0 6px}p{color:#667085;margin:0 0 18px}' +
       'table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #d8dee9;padding:6px;text-align:left;vertical-align:top}' +
       'th{background:#f2f4f7}@media print{button{display:none}}</style></head><body>' +
@@ -1044,12 +1058,11 @@
         escapeHtml(t("done")) + " " +
         escapeHtml(t("assetAnalysed")) + ": " + planRows.length +
         ". " + escapeHtml(t("assetsToFix")) + ": " + planRows.filter(function (r) { return r.needsFix; }).length +
-        ". " + escapeHtml(t("inactiveDevices")) + ": " + inactiveRows.length +
-        ". <strong>" + escapeHtml(t("oldDataLabel")) + ":</strong> " + OLD_DATA_DAYS + " " + escapeHtml(t("daysAgo")) + ".";
+        ". " + escapeHtml(t("inactiveDevices")) + ": " + inactiveRows.length + ".";
 
       exportBtn.disabled = exportRows.length === 0;
     } catch (error) {
-      console.error("Geotab Data Quality Audit error:", error);
+      console.error("Vodafone Automotive Quality Audit error:", error);
       byId("status").textContent = t("error");
     } finally {
       if (refreshBtn) refreshBtn.disabled = false;
