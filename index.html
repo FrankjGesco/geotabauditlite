@@ -13,10 +13,10 @@
         <div class="eyebrow">MyGeotab Add-In</div>
         <h1 id="appTitle">Geotab Data Quality Audit</h1>
         <p id="subtitle" class="subtitle">
-          Controllo qualità della banca dati MyGeotab: asset da correggere, dati mancanti, gruppi operativi, comunicazione dispositivi e dispositivi non attivi.
+          Controllo qualità della banca dati MyGeotab: asset da correggere, dati mancanti, gruppi operativi, comunicazione dispositivi e asset senza DeviceStatusInfo.
         </p>
       </div>
-      <div class="version">v1.1.0</div>
+      <div class="version">v1.1.2</div>
     </header>
 
     <section id="localWarning" class="notice warning hidden">
@@ -82,9 +82,9 @@
       </article>
 
       <article class="summary-card inactive-card">
-        <div id="inactiveLabel" class="summary-label">Dispositivi non attivi</div>
+        <div id="inactiveLabel" class="summary-label">Senza DeviceStatusInfo</div>
         <div id="inactiveDeviceCount" class="summary-number">-</div>
-        <div id="inactiveHelpText" class="summary-help">Non installati o fuori validità</div>
+        <div id="inactiveHelpText" class="summary-help">Stato dispositivo non disponibile</div>
       </article>
 
       <article class="summary-card ok-card">
@@ -119,7 +119,7 @@
         <div class="panel-header">
           <div>
             <h2 id="planTitle">Piano correzione asset</h2>
-            <p id="planText">Solo asset attivi. I dispositivi non installati o non attivi sono esclusi dal piano correzione e dall’anagrafica.</p>
+            <p id="planText">Solo asset attivi con DeviceStatusInfo. Gli asset senza DeviceStatusInfo sono esclusi dal piano correzione e dall’anagrafica.</p>
           </div>
           <div class="panel-tools">
             <button id="showOnlyToFix" class="btn small active-filter">Solo da correggere</button>
@@ -153,7 +153,7 @@
         <div class="panel-header">
           <div>
             <h2 id="dataTitle">Asset attivi con dati anagrafici mancanti</h2>
-            <p id="dataText">VIN, seriale dispositivo, targa e gruppi operativi. I dispositivi non attivi sono esclusi.</p>
+            <p id="dataText">VIN, seriale dispositivo, targa e gruppi operativi. Gli asset senza DeviceStatusInfo sono esclusi.</p>
           </div>
         </div>
 
@@ -210,8 +210,8 @@
       <div class="panel">
         <div class="panel-header">
           <div>
-            <h2 id="inactiveTitle">Dispositivi non attivi / non installati</h2>
-            <p id="inactiveText">Elenco separato: questi elementi non generano anomalie anagrafiche nel piano correzione.</p>
+            <h2 id="inactiveTitle">Senza DeviceStatusInfo / non installati</h2>
+            <p id="inactiveText">Elenco separato: questi asset attivi non hanno DeviceStatusInfo e non generano anomalie anagrafiche nel piano correzione.</p>
           </div>
         </div>
 

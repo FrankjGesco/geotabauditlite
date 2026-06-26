@@ -1,4 +1,4 @@
-# Geotab Data Quality Audit v1.0.2
+# Geotab Data Quality Audit v1.1.2
 
 Versione focalizzata sul prodotto vendibile: controllo qualità della banca dati MyGeotab.
 
@@ -80,12 +80,13 @@ Il report esporta solo il piano correzione, con colonne:
   - `Ultimo dato troppo vecchio`
 
 
-## Aggiornamento v1.1.1
+## Aggiornamento v1.1.2
 
 - Il controllo parte automaticamente all’apertura dell’add-in e si aggiorna anche al ritorno sul tab MyGeotab.
 - Aggiunto aggiornamento manuale opzionale con pulsante “Aggiorna ora”.
-- Separati i dispositivi non attivi / non installati dal piano correzione.
-- I dispositivi non attivi non generano anomalie anagrafiche e non entrano nel filtro “Piano correzione” o “Anagrafica”.
+- Separati gli asset attivi senza DeviceStatusInfo dal piano correzione.
+- Gli asset senza DeviceStatusInfo non generano anomalie anagrafiche e non entrano nel filtro “Piano correzione” o “Anagrafica”.
+- Gli asset con DeviceStatusInfo vengono analizzati sempre in anagrafica; se non comunicano entrano anche nei problemi comunicazione.
 - Aggiunta scheda dedicata “Non attivi”.
 - Aggiunta traduzione automatica IT/EN in base alla lingua rilevata dal profilo/ambiente.
 - Corretto export CSV: mantiene la virgola come separatore, ma rimuove virgole interne dai valori per non creare colonne extra in Excel/Text-to-columns.
