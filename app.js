@@ -100,8 +100,23 @@
   function languageFromValue(value) {
     if (!value) return null;
     var v = String(value).trim().toLowerCase().replace("_", "-");
-    if (v === "it" || v.indexOf("it-") === 0 || v.indexOf("ital") !== -1) return "it";
-    if (v === "en" || v.indexOf("en-") === 0 || v.indexOf("engl") !== -1) return "en";
+    if (v === "it" || v.indexOf("it-") === 0 || v.indexOf("ital") !== -1 || v === "italiano") return "it";
+    if (v === "en" || v.indexOf("en-") === 0 || v.indexOf("engl") !== -1 || v === "english") return "en";
+    return null;
+  }
+
+  function languageFromMyGeotabDom() {
+    try {
+      var candidates = [
+        document.documentElement && document.documentElement.getAttribute("lang"),
+        document.body && document.body.getAttribute("lang"),
+        document.querySelector("html") && document.querySelector("html").getAttribute("lang")
+      ];
+      for (var i = 0; i < candidates.length; i++) {
+        var lang = languageFromValue(candidates[i]);
+        if (lang) return lang;
+      }
+    } catch (e) {}
     return null;
   }
 
@@ -200,11 +215,19 @@
 
     tryGetSessionUserName(api, state, function (userName) {
       readUserLanguage(api, userName, function (profileLanguage) {
-        currentLanguage = languageFromValue(profileLanguage) || "en";
+        var userLang = languageFromValue(profileLanguage);
+        var shellLang = languageFromMyGeotabDom();
+
+        // Primary source: User.language from MyGeotab.
+        // Secondary source: the active MyGeotab shell language exposed on <html lang="...">.
+        // This is not the browser language and changes with the MyGeotab profile UI language.
+        currentLanguage = userLang || shellLang || "en";
+
         try {
           console.info("Vodafone Automotive Quality Audit language", {
             userName: userName || null,
             profileLanguage: profileLanguage || null,
+            htmlLang: (document.documentElement && document.documentElement.getAttribute("lang")) || null,
             addinLanguage: currentLanguage
           });
         } catch (e) {}

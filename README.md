@@ -112,3 +112,9 @@ Il report esporta solo il piano correzione, con colonne:
 - Aggiornato numero versione visualizzato.
 - Aggiunto cache busting su `app.js` per forzare il caricamento del JavaScript aggiornato da GitHub Pages/MyGeotab.
 - Corretto fallback locale fuori da MyGeotab.
+
+
+## v1.1.9
+
+- Language detection fixed using User.language first and MyGeotab shell html lang as fallback.
+- No browser language fallback and no config parameter required.
